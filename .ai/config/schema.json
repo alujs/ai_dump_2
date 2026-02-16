@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.mcp/config.schema.json",
+  "title": "Graph Backed MCP Config",
+  "type": "object",
+  "required": [
+    "dashboardPort",
+    "repo",
+    "neo4j",
+    "graph",
+    "jira",
+    "swagger",
+    "recipes",
+    "hints",
+    "parserTargets",
+    "features",
+    "ingestion"
+  ],
+  "properties": {
+    "dashboardPort": { "type": "integer", "minimum": 1 },
+    "repo": {
+      "type": "object",
+      "required": ["root", "worktreeRoot"],
+      "properties": {
+        "root": { "type": "string", "minLength": 1 },
+        "worktreeRoot": { "type": "string", "minLength": 1 }
+      }
+    },
+    "neo4j": {
+      "type": "object",
+      "required": ["uri", "username", "password", "database"],
+      "properties": {
+        "uri": { "type": "string", "minLength": 1 },
+        "username": { "type": "string", "minLength": 1 },
+        "password": { "type": "string", "minLength": 1 },
+        "database": { "type": "string", "minLength": 1 }
+      }
+    },
+    "graph": {
+      "type": "object",
+      "required": ["seedRoot", "outRoot", "cypherRoot"],
+      "properties": {
+        "seedRoot": { "type": "string", "minLength": 1 },
+        "outRoot": { "type": "string", "minLength": 1 },
+        "cypherRoot": { "type": "string", "minLength": 1 }
+      }
+    },
+    "jira": {
+      "type": "object",
+      "required": ["baseUrl", "patFilePath"],
+      "properties": {
+        "baseUrl": { "type": "string" },
+        "projectKey": { "type": "string" },
+        "patFilePath": { "type": "string", "minLength": 1 }
+      }
+    },
+    "swagger": {
+      "type": "object",
+      "required": ["roots"],
+      "properties": {
+        "roots": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "recipes": {
+      "type": "object",
+      "required": ["manifestPath"],
+      "properties": {
+        "manifestPath": { "type": "string", "minLength": 1 }
+      }
+    },
+    "hints": {
+      "type": "object",
+      "required": ["angularRoots", "federationMappings"],
+      "properties": {
+        "angularRoots": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "federationMappings": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "parserTargets": {
+      "type": "object",
+      "required": ["typescript", "templates", "json", "yaml"],
+      "properties": {
+        "typescript": { "type": "array", "items": { "type": "string" } },
+        "templates": { "type": "array", "items": { "type": "string" } },
+        "json": { "type": "array", "items": { "type": "string" } },
+        "yaml": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "features": {
+      "type": "object",
+      "required": ["browserAutomationEnabled"],
+      "properties": {
+        "browserAutomationEnabled": { "type": "boolean" }
+      }
+    },
+    "ingestion": {
+      "type": "object",
+      "required": ["includes", "excludes"],
+      "properties": {
+        "includes": { "type": "array", "items": { "type": "string" } },
+        "excludes": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

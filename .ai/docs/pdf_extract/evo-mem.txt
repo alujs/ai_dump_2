@@ -1,0 +1,1465 @@
+2025-11-27
+Evo-Memory:BenchmarkingLLMAgent
+Test-timeLearningwithSelf-EvolvingMemory
+TianxinWei
+,1
+,NoveenSachdeva
+,BenjaminColeman
+,ZhankuiHe
+,YuanchenBei
+,XuyingNing
+,Mengting
+Ai
+,YunzheLi
+,JingruiHe
+,EdH.Chi
+,ChiWang
+,ShuoChen
+,FernandoPereira
+,Wang-ChengKang
+and
+DerekZhiyuanCheng
+WorkdonewhileatGoogleDeepMind,
+UniversityofIllinoisUrbana-Champaign,
+GoogleDeepMind
+Statefulnessisessentialforlargelanguagemodel(LLM)agentstoperformlong-termplanningand
+problem-solving.Thismakes
+memory
+acriticalcomponent,yetitsmanagementandevolutionremain
+largelyunderexplored.Existingevaluationsmostlyfocusonstaticconversationalsettings,wherememory
+ispassivelyretrievedfromdialoguetoanswerqueries,overlookingthedynamicabilitytoaccumulate
+andreuse
+experience
+acrossevolvingtaskstreams.Inreal-worldenvironmentssuchasinteractive
+problemassistantsorembodiedagents,LLMsarerequiredtohandlecontinuoustaskstreams,yetoften
+failtolearnfromaccumulatedinteractions,losingvaluablecontextualinsights,alimitationthatcallsfor
+test-timeevolution
+,whereLLMsretrieve,integrate,andupdatememorycontinuouslyduringdeployment.
+Tobridgethisgap,weintroduceEvo-Memory,acomprehensivestreamingbenchmarkandframework
+forevaluating
+self-evolvingmemory
+inLLMagents.Evo-Memorystructuresdatasetsintosequentialtask
+streams,requiringLLMstosearch,adapt,andevolvememoryaftereachinteraction.Weunifyand
+implementovertenrepresentativememorymodulesandevaluatethemacross10diversemulti-turn
+goal-orientedandsingle-turnreasoningandQAdatasets.Tobetterbenchmarkexperiencereuse,we
+provideabaselinemethod,ExpRAG,forretrievingandutilizingpriorexperience,andfurtherpropose
+ReMem,an
+actionthinkmemoryre ne
+pipelinethattightlyintegratesreasoning,taskactions,and
+memoryupdatestoachievecontinualimprovement.
+Keywords:LLMs,AgenticMemory,Test-timeLearning,Self-evolvingAgents,LifelongIntelligence
+1.
+Introduction
+LargeLanguageModels(LLMs)haverapidlyevolvedfromsimplechatbotsintocapablesystems
+thatcanwritecode,controlbrowsers,andperformadvancedquestionanswering(
+Comanicietal.
+2025
+).Theseadvanceshavebeendrivenbyimprovinginference,planning,andtooluse,asshown
+bybenchmarksemphasizinglogicalreasoningandmulti-stepactions.Yetafundamentalcapability,
+,remainslargelyunderexplored.MemoryallowsLLMstomaintainstateacrossinteractions,
+accumulateexperience,andadaptstrategiesovertime.Recentstudieshaveintroducedmemory
+modulesthattrackdialoguehistoriesthroughcompression,indexing,orretrieval(
+Maharanaetal.
+2024b
+),improving
+conversationalrecall
+andpersonalization.However,mostofthesesystemsonly
+reusestaticdialoguecontextratherthanlearningfromexperiencetoimprovefuturereasoningor
+decision-making.
+Despitetheseadvances,existingLLMmemorysystemsremainlargelystatic,retrievinginformation
+passivelyratherthanevolvingthroughuse.Currentevaluationstestwhethermodelscanrecallpast
+contextbutrarelyassesstheirabilityto
+reuseexperience
+.Inessence,agentsrememberwhatwas
+saidbutnotwhatwaslearned.
+Conversationalrecall
+retrievespriorfacts,whereas
+experiencereuse
+abstractsreasoningstrategiesforfuturetasks.Withoutsuchreuse,modelsrepeatedlysolvesimilar
+problems,aslong-termassistantsoftenrecallcontextyetfailtoadaptacrosssessions.
+Correspondingauthor(s):twei10@illinois.edu
+2025GoogleDeepMind.Allrightsreserved
+Evo-Memory:BenchmarkingLLMAgentTest-timeLearningwithSelf-EvolvingMemory
+Figure2
+Illustrationofdi erenttasktypesandexperiencereusing.Astatefulagentencountersboth
+multi-turntasks(e.g.,embodiedmanipulation)andsingle-turntasks(e.g.,solvingequations),and
+shouldlearnreusableexperiencesfrompastexperiences.
+Figure1
+Conversationalrecallretrievespastfacts(e.g.,
+solutionsto
+).Experiencereuserecalls
+reasoningstrategies(e.g.,usingtheformula).
+Severalrecentbenchmarkshavebegun
+examiningstaticadaptationbutremain
+limitedinscope.StreamBench(
+Wuetal.
+2024a
+)evaluatessequentiallearningbut
+mainlymeasuresfactualretentionwith-
+outreasoningortrajectoryreuse.Lifelong-
+Bench(
+Zhengetal.
+)studieslifelong
+learningacrossenvironmentsandskills
+butfocusesonretentionwithoutmodel-
+ingmemorystructureorupdates.Other
+studies(
+Huetal.
+)assesslong-termconver-
+sationalconsistencybutdonottesthow
+agentsevolvetheirmemoryduringdeploy-
+ment.Together,thesee ortshighlighta
+criticalgap:whileprogresshasbeenmade
+onsequentialreasoning,thereisstillno
+uni edframeworkforevaluatinghowdif-
+ferentmemorymethodsretrieve,integrate,
+andevolvehistoricalstrategiesinrealistic
+streamingscenarios.Figure
+illustratesthiscontrastbetweenstaticrecallandcumulativeimprove-
+mentthroughself-evolvingmemory.
+Tobridgethisgap,weintroduce
+Evo-Memory
+,acomprehensivestreamingbenchmarkand
+frameworkforevaluating
+inLLMagents.Figure
+illustrateshowaself-evolving
+agentreusespriorexperiencesacrossbothmulti-turninteractivetasksandsingle-turnreasoning
+tasks.Evo-Memoryrestructuresdatasetsintosequential
+taskstreams
+,requiringmodelstoretrieve,
+adapt,andevolvememoryaftereachinteraction.Thebenchmarkcoversboth
+multi-turngoal-oriented
+environmentsand
+single-turnreasoningorproblem-solving
+tasks,explicitlytestingwhetherLLMscan
+accumulateknowledgeandre nestrategiesduringdeployment,aprocessweterm
+Weunifyandimplementovertenrepresentativememorymodules,includingretrieval-based,work ow,
+andhierarchicalmemorysystems,tostudytheiradaptationbehavior.Tofurtherexamineexperience
+reuse,weintroduce
+ExpRAG
+,asimpleretrieval-basedbaselinethatleveragespriortaskexperiences,
+andfurtherdevelop
+ReMem
+,anadvanced
+pipelinethattightlyintegrates
+reasoning,action,andmemoryupdatesforcontinualimprovement.
+Insummary,ourcontributionsarethreefold:
+Benchmark:
+WepresentEvo-Memory,astreamingbenchmarkthatevaluatesLLMagents'ability
+toperform
+acrossdiversemulti-turnandsingle-turntasks,bridgingthegap
+betweenconversationalrecallandexperiencereuse.
+Framework:
+Weprovideauni edevaluationframeworkwithmemory-centricmetricsforanalyzing
+adaptation,e ciency,andstability,andwillreleaseallcodeandcon gurationsforreproducibility.
+AnalysisandInsights:
+Weintroduce
+,asimpleretrieval-basedbaselineforexperience
+reuse,and
+,an
+pipelinethatuni esreasoning,action,and
+memoryforcontinualimprovement,informingfuturedesignsofmemory.
+2.
+RelatedWork
+Inthissection,wereviewexistingworksontest-timelearningandself-evolvingmemory.
+2.1.
+Test-timeLearning
+Test-timelearning(TTL)buildsuponearlyworkontest-timeadaptation(TTA)(
+Niuetal.
+2022
+Wangetal.
+2021
+Zhangetal.
+2023
+),whichenablesmodelstoadjusttodistributionshiftsduring
+deployment.RecentadvancesextendTTAtoward
+continuousself-improvement
+IwasawaandMatsuo
+Liuetal.
+),allowingmodelstore netheirbehaviorthroughonlineoptimization.Recent
+agent-based
+studiesoperationalizesuchcontinualimprovementviare ection,planning,andself-
+evolution.Workslike(
+Parketal.
+Shinnetal.
+Zhaoetal.
+Zhou
+etal.
+2024
+)andnewerframeworks,including(
+Chenetal.
+Huangetal.
+)demonstrate
+howagentsautonomouslyreviseplans,synthesizefeedback,andco-evolve(
+Gaoetal.
+).These
+advancesmarkashiftfromstaticadaptationtowardadaptive,self-improvingagentscapableof
+continuallearningduringdeployment.Buildingonthistrend,weproposetobenchmarksuch
+dynamicsfromanovel
+perspective.
+2.2.
+Self-evolvingMemory
+EarlyLLMmemorysystemsprimarilyservedas
+passivestorage
+,maintainingrecentdialoguesor
+retrievedfactstocompensateforlimitedcontextwindows(
+Asaietal.
+Lewisetal.
+2020
+Liu
+Packeretal.
+Zhongetal.
+).Subsequentstudiesintroducedrichermanagement
+mechanisms,includingdi erentiablereadwritecontrollers(
+Liangetal.
+Modarressietal.
+)andevaluationsunderrealisticconversationalsettings(
+).Beyondstaticbu ers,recentworkexplores
+policy-drivencontrol
+,wherethemodelisexplicitly
+optimizedtodecidewhattostore,retrieve,oroverwrite(
+Lietal.
+Xuetal.
+Yanetal.
+Yuetal.
+Zhouetal.
+).Meanwhile,structuredmemoryrepresentationshaveemerged
+toorganizeexperiencesintorelationalorproceduralforms,asinRepoGraph(
+Ouyangetal.
+),
+Figure3
+OverviewoftheReMemagentframework.Left:Test-timeevolutionprocesswherethe
+agentiterativelysearches,synthesizes,andevolvesitsmemoryacrossmultipletasks.Right:Agent
+architecturewiththreecoremodulesThink(reasoninganddecomposition),Re neMemory(retrieve,
+prune,organize),andAct(execution)thatinteractwiththeenvironmentandlearnedmemory.
+MEM0(
+Chhikaraetal.
+),Zep(
+Rasmussenetal.
+),andDynamicCheatsheets(
+Suzgun
+).However,thereremainsnouni edevaluationsettingandframeworkfor
+self-evolving
+,theabilitytoreuseandadaptexperiencesacrosstasks.Evo-Memorybuildsonthistrajectory
+bybenchmarkinghowLLMsnotonlystoreandrecallbutalsoevolve,reorganize,andreusememory
+understreamingtasksettings.
+3.
+Evo-Memory:EvaluatingSelf-EvolvingMemoryinLLMAgents
+ExistingevaluationsofLLMsoftentreatmemoryasstaticrecall,overlookingitsroleincontinual
+adaptation.Evo-Memoryprovidesauni edbenchmarktostudy
+,whereagents
+retrieve,integrate,andupdateknowledgeovertime.AsillustratedinFigure
+,theleftsideshowsthe
+test-timeevolutionprocess,andtherightsideoutlinesthe
+agentwiththreemodules
+Think
+Act
+,and
+Re neMemory
+.We rstformalizetheproblemsetting,thendescribetworepresentative
+implementations,
+,usedtoinstantiatethebenchmark.
+3.1.
+ProblemFormulation
+Weformalizeageneralmemory-augmentedagentasatuple(
+),where
+isthebaseLLM,
+isthememoryupdatepipeline,
+istheretrievalmodule,and
+isthecontextualconstruction
+mechanismthattransformsretrievedcontentintothe nalworkingcontext.Inoursetting,theagent
+processesasequenceofinputs
+,andthememorystate
+evolveswiththehistory.At
+time
+,theagentreceivesaninput
+,maintainsanevolvingmemory
+,retrievesrelevantelements
+,constructsacontextualizedprompt
+andproducesanoutput
+Thisabstractionuni esawidespectrumofexistingmemorymechanisms,fromretrieval-augmented
+generationtodynamic,hierarchical,andwork ow-basedmemories,underasingleiterativeformula-
+tion.
+Search.
+Giventhecurrentinput
+,theagent rstretrievesrelevantmemoryentries:
+where
+canrepresentsimilaritysearch,index-basedlookup,orattentionoverstoredembeddings.
+Thisstepcapturesmemoryaccesspoliciesacrossdi erentalgorithms.
+Synthesis.
+Theagentinterpretsandrestructurestheretrievedinformation
+intoaconciseworking
+contextalignedwiththecurrentinput
+.Thissynthesisyieldsacoherenttext
+,fromwhichthe
+naloutputisderived:
+Theagentrestructurestheretrievedinformation
+intoaworkingcontexttailoredto
+thecurrentinput
+.Thisstepmayinvolveformingastructuredprompt(
+),selecting
+keymemoryitems(
+),ormergingretrievedcontent(
+)intoashortsummary.Wedenotetheresultingcontextas
+,andthe nal
+outputis
+Evolve.
+Afterobtaining
+,theagentconstructsanewmemoryentry
+thatcaptures
+thecurrentstep'sexperiencetogetherwiththefeedback
+,suchaswhetherthetaskwascompleted.
+Thememoryisthenupdatedvia:
+Di erentalgorithmsinstantiate
+di erently,forexample,directappendforretrieval-basedmemories,
+summarizationorcompressionforlong-termstorage,orreplacementforbounded-capacitystores.
+Thisuni edformulationabstractstheessentialcycleof
+retrieval
+synthesis
+evolution
+underlying
+allmemory-basedagents.
+DatasetPreparation.
+Evo-Memoryrestructuresconventionalstaticdatasetsinto
+streamingtask
+sequences
+,enablingevaluationofhowLLMsreuseandevolvememoryovertime.Eachdatasetcan
+thusbetransformedintoasequence
+,formingaground-truthtrajectory
+inwhichearliertasksprovideessentialinformationorstrategiesforlaterones.Ateachstep
+,the
+agentprocessesinput
+,retrievesandsynthesizesmemory,producesprediction
+,andupdatesthe
+memorystate
+,yieldingthepredictedtrajectory:
+!!
+Thisdesigntransformsstaticbenchmarksintointeractiveevaluationstreamsthatexplicitlyprobean
+LLM'sabilitytoaccumulate,adapt,andre neknowledgeduringdeployment.
+3.2.
+ExpRAG:ExperienceRetrievalandAggregation
+Asasimplebaselineandextension,wede ne
+,atask-levelretrieval-augmentedagent.Each
+memoryentry
+encodesastructuredexperiencetextwithtemplate
+.Atstep
+agentretrieves
+similarexperiencesfrommemoryaccordingtoaretrievalscore
+Top-
+Themodelconditionsontheseretrievedexamplesfollowingthein-contextlearningprinciple:
+andappendsthenewexperiencetomemory:
+[f
+ExpRAGthusperformsone-shotexperiencereusethroughretrievalandaggregation.Itcaptures
+howsimplememory-basedextensionsofin-contextlearningbehavebutlacksiterativereasoningor
+adaptivere nementduringinference.
+3.3.
+ReMem:SynergizingReasoning,Acting,andMemory
+Wepropose
+,asimpleyete ectiveframeworkthatuni esreasoning,action,andmemory
+re nementwithinasingledecisionloop.Unlikeconventionalretrieval-augmentedorReAct-style
+methodsthattreatmemoryasstaticcontext,ReMemintroducesathirddimensionof
+memoryreasoning
+allowingtheagenttoactivelyevaluate,reorganize,andevolveitsownmemoryduringproblemsolving.
+Ateachstep
+,giventhecurrentinput
+,memorystate
+,andpreviousreasoningtraces
+1:
+atthisstep,theagentselectsoneofthreeoperations:
+2f
+Re ne
+Itthenperformstheoperationandtransitionsaccordingto:
+Agent
+denotestheoutputgeneratedatstep
+after
+operations,suchasanintermediatereasoning
+trace,anexternalaction,andmemoryre nethoughts.
+Speci cally,
+producesinternalreasoningtracesthathelpdecomposethetaskandguide
+subsequentactions;
+executesanoperationintheenvironmentoroutputsaresponseobservableto
+theuser;
+performsmeta-reasoningovermemory,whichexploitingusefulexperiences,pruning
+noise,andreorganizing
+,tobettersupportfuturereasoningandaction.Withineachstep,theagent
+mayperformmultipleroundsof
+,andthestepterminatesoncean
+operation
+isselected.ThisinducesaMarkovdecisionprocesswherethestateatstep
+operationsis
+,theactionspaceis
+,andthetransitiondynamicsaregivenby
+the
+operatortogetherwiththeenvironmentresponse.Dependingonthetask,the
+-output
+ofstep
+mayserveasthe nalanswerforsingle-steptasksorasanintermediateresultinmulti-step
+settings,wheretheprocesscontinuesuntiltheoveralltaskiscompleted.
+Thisuni edformulationexpandstheactionspaceofReAct-style(
+Yaoetal.
+)agentsby
+introducinganexplicitmemoryreasoningmechanism.Throughthisextension,memorybecomesan
+adaptivecomponentthatinteractswithreasoninginrealtimeratherthanremainingapassivecontext.
+Underthisview,theentiredecisionloopcanalsobeinterpretedasaMarkovprocess,wherethestate
+encapsulatesthecurrentinput,memorystate,andongoingreasoningtraces.Suchintegrationyields
+alightweightyetpowerfulparadigmforcontinualadaptation,wheretheagentlearnstoreasonabout
+boththetaskanditsownknowledgestate.Bycouplingre ectionwithmemoryevolution,ReMem
+establishesanewstandardforadaptive,self-improvingLLMagents.
+4.
+Experiments
+Inthissection,weevaluateleadingLLMsontheEvo-Memorybenchmarkunderouruni edtest-time
+learningpipeline,focusingon vekeyresearchquestions(RQs):
+RQ1:
+HowdoLLMagentsperformonEvo-Memoryacrossdiversedomainsandtasktypes,and
+does
+enhancetheirtest-timelearningability?
+RQ2:
+Whatfactorsin uencethee ectivenessofmemoryindi erenttasks,andhowdoesexperience
+reuseimprovetaske ciency?
+RQ3:
+Howdoestasksequencedi culty(e.g.,easyvs.hardtrajectories)a ectmemoryadaptation
+andgeneralization?
+RQ4:
+Howdovaryingfeedbacktypesimpactlearningdynamicsandmemoryre nementacross
+tasks?
+RQ5:
+Howdoescumulativeperformanceevolveovertasksequencesandtimesteps,re ecting
+continualadaptationduringdeployment?
+4.1.
+ExperimentalSetup
+Evo-Memoryevaluatesmemorymechanismsunderrealisticstreamingmulti-taskconditions.Inwhat
+follows,wedescribethebenchmarkdatasets,metrics,andthemethodscompared.
+4.1.1.
+Datasets
+Evo-Memoryisevaluatedonadiversesuiteofdatasetsspanningfactualknowledge,reasoning,
+mathematics,programming,andgoal-orientedinteraction.Forfactualandreasoningability,we
+include
+MMLU-Pro
+)and
+GPQA-Diamond
+Reinetal.
+),whichtestmulti-
+disciplinaryandgraduate-levelreasoning.Formathematicalproblemsolving,weuse
+AIME-24
+AIME-25
+HuggingFaceH4
+),containingOlympiad-stylechallengesrequiringsymbolic
+reasoningandexact-matchevaluation.Fortool-useandAPIgrounding,weinclude
+ToolBench
+Patil
+).Formulti-turnandgoal-orientedinteraction,weadoptthe
+AgentBoard
+Zhuangetal.
+)suite,covering
+AlfWorld
+Shridharetal.
+BabyAI
+Chevalier-Boisvertetal.
+2019
+ScienceWorld
+Jericho
+Hausknechtetal.
+),and
+PDDL
+tasks(
+Yangetal.
+).Together,thesedatasetsspanbothsingle-turnandinteractivesettings,enablingauni ed
+evaluationoffactualrecall,proceduralreasoning,andlong-horizonadaptation.Allmethodsare
+evaluatedunderthesame
+searchpredictevolve
+loop
+search
+     !
+       !
+evolve
+withidenticalpromptingtemplates,con gurations,andmemorybudgetsifapplicable.Feedback
+is
+consideredasthecorrectnesssignal.
+4.1.2.
+Evaluation
+Evo-Memoryevaluatesbothtaskperformanceandmemoryqualityalongfourdimensions.First,
+answeraccuracy
+measureswhetherthemodelproducescorrectoutputsinsingle-turntasks.Second,
+successrate
+progressrate
+evaluategoalcompletioninmulti-turntasks.Third,
+stepe ciency
+trackshowmanystepsareneededtoreachagoal,re ectingreasoningconciseness.Finally,
+sequence
+robustness
+testswhetherperformancestaysstableunderdi erenttaskorders.Together,thesemetrics
+assesshowwelltheagentlearns,adapts,andreusesknowledgeovertime.
+4.1.3.
+Methods
+Webenchmarkabroadrangeofagentsandmemoryarchitecturesinstantiatedontwostrong
+LLM
+backbones
+:theGemini-2.5series(
+)(
+Flash
+FlashLite
+Pro
+theClaudefamily(
+Anthropic
+3.5Haiku
+3.7Sonnet
+).Theevaluatedmethodsare
+groupedintofourcategories:(1)
+Agentpipelineswithoutpersistentmemory
+,includingReAct(
+Yao
+)andAmem(
+),whichrelyonshort-termcontextorlightweightcaches;(2)
+Adaptiveagenticmemorymethods
+,suchasSelfRAG(
+),MemOS(
+Mem0(
+),andLangMem(
+LangChaincontributors
+),whichsupportdynamic
+retrievalandcontinualupdates;(3)
+Memory-basedagentsforproceduralknowledge
+,including
+DynamicCheatsheet(DC)(
+Suzgunetal.
+)withtwovariantsCumulative(Cu)andSynthesis(RS)
+andAgentWork owMemory(AWM)(
+),whichemphasizereusablework owsand
+taskstrategies;and(4)
+Proposedevolving-memoryframework
+,comprising
+ExpRecent
+,whichunifyreasoning,action,andmemoryre nementinaself-evolvingloop.All
+methodsareevaluatedunderauni ed
+protocoltoisolatethee ectsofmemory
+design.ImplementationandpromptingdetailsareprovidedinAppendix
+.Weexcludesystems
+suchasMemoryGpt(
+)andMemoryBank(
+)thattargetfactual
+recallonly,sinceEvo-Memoryisdesignedtotestevolvingandproceduralmemory.Ourgoalisnotto
+improveormodifytheunderlyingLLMsthemselves.Certainmethods,suchasMemOSandLangMem,
+arenotfullycompatiblewithembodiedenvironments,andthusweexcludethemfrommulti-turn
+datasets.Evo-Memoryisolatesthee ectofsearchandevolutionin
+memorymechanisms
+,sothat
+observeddi erencesre ectsolelymemorydesignratherthanrawLLMcapability.
+4.2.
+Belowaretheconductedexperimentstoanswertheproposedresearchquestions.
+4.3.
+AnalysisofResults(RQ1)
+Tables
+summarizetheresultsacrosssingle-turnandmulti-turnsettings.Overall,Evo-
+Memorydemonstratesthatself-evolvingmemoryarchitecturesprovideconsistentimprovements.In
+single-turnreasoningandQAbenchmarks(AIME-24/25,GPQA,MMLU-Pro,ToolBench),evolving-
+memorymethodsshowconsistentimprovements,with
+achieving0.65averageexactmatch
+and0.85/0.71APIaccuracyunderGemini-2.5Flash.Adaptiveretrievalmethodsenhancefactual
+grounding,yetonlyevolvingsystemsmaintainconsistentgainsthroughiterativere nement.Agents
+withproceduralknowledgeperformwellonstructureddomainssuchasAIMEbutlaginscienti c
+reasoningandtooluse,showinglimited exibility.
+servesasasimpleyethighlye ective
+baseline,outperformingseveralmorecomplexdesigns.Whileimprovementsinsingle-turnsettings
+aremoderate,theoveralltrendremainsconsistentacrossdatasetsandmodelfamilies.
+Inmulti-turnreasoningenvironments(AlfWorld,BabyAI,PDDL,ScienceWorld),
+achievestrongandstableperformanceonbothGemini-2.5andClaudebackbones,reach-
+ing0.92/0.96onBabyAIand0.95/0.62onScienceWorld.Theseresultsindicatethatcontinual
+re ectionandre nementsubstantiallyimproveproceduralknowledgeaccumulation.Performance
+gainsarenotablylargerinmulti-turnsettings,underscoringthatcontinualadaptationbecomes
+LLMBackboneMethod
+ExactMatch
+API/Acc.
+AIME24AIME25GPQAMMLU-Pro(Eco.)MMLU-Pro(Eng.)MMLU-Pro(Philo.)ToolBenchAvg.
+Claude3.7Sonnet
+Baseline0.170.130.550.840.630.780.76/0.620.54
+History0.13
+0.23
+0.560.850.640.780.76/0.610.55
+ReAct0.170.100.570.840.630.760.76/0.610.54
+Amem
+0.27
+0.170.540.830.630.790.77/0.630.56
+SelfRAG0.200.100.580.840.650.770.77/0.630.55
+MemOS0.170.200.550.840.640.760.76/0.620.55
+Mem00.200.130.580.840.620.770.76/0.610.55
+LangMem0.100.130.530.770.560.660.77/0.630.49
+DC-Cu0.17
+0.570.790.520.650.77/0.620.52
+DC-RS0.200.200.620.790.520.600.77/0.620.52
+AWM0.030.030.530.800.560.720.76/0.620.48
+ExpRecent0.130.200.61
+0.86
+0.630.780.82/0.660.56
+ExpRAG0.170.17
+0.70
+0.85
+0.670.800.88/0.720.59
+ReMem0.130.130.67
+0.650.800.87/0.710.58
+Gemini2.5Flash
+Baseline0.470.470.480.83
+0.46
+0.750.71/0.610.59
+History0.600.470.430.840.420.780.62/0.540.58
+ReAct0.300.270.050.640.160.540.64/0.570.37
+0.700.57
+0.520.830.420.720.72/0.600.63
+SelfRAG0.500.470.460.830.450.750.72/0.610.59
+MemOS0.470.470.500.82
+Mem00.500.470.450.83
+0.740.71/0.610.59
+LangMem0.430.50
+0.53
+0.790.390.710.68/0.570.57
+DC-Cu0.600.400.480.790.440.690.70/0.590.58
+DC-RS0.530.370.480.800.420.690.68/0.570.56
+AWM0.500.370.490.790.430.720.71/0.590.56
+ExpRecent0.470.470.420.830.390.750.78/0.660.58
+ExpRAG0.430.470.420.830.430.78
+0.87/0.73
+0.60
+ReMem0.600.530.51
+0.850.460.79
+0.85/0.71
+0.65
+Table1
+Cross-datasetresultsofdiversememoryarchitecturesacrossmodelsonthesingle-turn
+reasoningandquestionansweringdatasets.Categoriesareseparatedbyhorizontalrules;results
+(ExactMatch
+andAPI/Acc
+)comparezero-shot,agentic,adaptive,procedural,andproposedmemory
+methods.
+increasinglyvaluableastaskhorizonslengthen.Whilemanybaselinesenhanceretrievalgrounding,
+theystruggletoreuselong-horizonexperiencesandoftenfalterinopen-endedenvironments.Notably,
+lightweightvariantssuchas
+stillperformcompetitivelydespitetheir
+simplicity,suggestingthatexplicittask-levelutilizationduringtest-timeevolutionisbothpromising
+andunderexplored.
+Acrossallexperiments,evolving-memorymethodsdemonstrateconsistentgainsonbothGemini
+andClaudebackbones.Smallermodelsbene tparticularlyfromself-evolvingmemory,suggestingthat
+test-timere nementisapracticalpathtoenhancingthecapabilityoflighterLLMs.Together,these
+ndingsestablishtask-levelmemoryutilizationandcontinualreorganizationasvaluabledirections
+forfutureresearch,providingastandardizedreferencepointfordevelopingandevaluatingevolving-
+memoryagents.AdditionalresultsacrossmoreLLMfamiliesarepresentedinAppendix
+B.1
+4.4.
+AnalysisofMemoryImprovement(RQ2)
+Figure
+showsthat
+'simprovementstronglycorrelateswithwithin-datasettasksimilarity
+(Pearson
+717
+onGemini2.5Flashand
+563
+onClaude3.7Sonnet).Tasksimilarityis
+measuredbycomputingtheaveragecosinedistancebetweeneachtaskembeddinganditsdataset
+clustercenter,whereembeddingsareobtainedfromtheretrieverencoder.Asmalleraveragedistance
+AlfWorldBabyAIPDDLScienceWorldAvg.
+SPSPSPSPSP
+Baseline0.120.34
+0.610.71
+0.120.200.240.590.270.46
+History0.280.600.520.640.080.150.310.710.300.53
+ReAct0.240.560.480.63
+0.220.33
+0.340.710.320.56
+Amem0.250.590.530.640.100.160.360.740.310.53
+SelfRAG0.250.590.520.650.080.160.340.740.300.54
+Mem00.270.610.540.660.100.190.320.700.310.54
+DC-Cu0.250.590.530.640.080.170.290.710.290.53
+DC-RS0.270.600.530.660.070.150.330.730.300.54
+AWM0.260.590.520.640.080.160.330.730.300.53
+ExpRecent0.370.650.530.640.130.220.53
+0.83
+0.390.59
+ExpRAG0.590.790.560.650.170.270.530.810.460.63
+0.660.81
+0.530.61
+0.220.330.58
+0.81
+0.500.64
+Baseline0.180.490.510.660.170.390.100.530.240.52
+History0.500.730.480.660.650.850.320.740.490.74
+ReAct0.510.750.570.720.750.910.440.770.570.79
+Amem0.480.730.460.640.620.840.330.730.470.73
+SelfRAG0.520.750.460.640.650.840.310.740.490.74
+Mem00.510.740.480.660.650.840.370.760.500.75
+DC-Cu0.500.740.500.670.620.840.330.750.490.75
+DC-RS0.500.740.520.680.620.840.340.740.500.75
+AWM0.490.730.530.680.600.820.340.740.490.74
+ExpRecent0.660.830.630.730.530.760.490.820.580.79
+ExpRAG0.740.890.620.720.720.890.460.760.630.82
+0.920.960.730.830.830.950.620.890.780.91
+Table2
+Cross-environmentresultsacrossfourembodiedreasoningbenchmarks(AlfWorld,BabyAI,
+PDDL,ScienceWorld).Eachdatasetreportssuccess(S)andprogress(P)rates.Boldindicatesthe
+best(includingties)percolumn.ThelasttwocolumnsshowaveragedSandPacrossdatasets.
+indicateshigherintra-datasetcoherenceandthusstrongerstructuralsimilarity.Taskswithhigher
+embeddingclusterratios,suchasPDDLandAlfWorld,yieldlargergains,suggestingthatrecurring
+taskstructuresfacilitatememoryreuseandgeneralization.Incontrast,morediverseorlow-similarity
+datasetslikeAIME-25orGPQAshowsmallergains,re ectinglimitedtransferableexperiences.These
+ndingshighlighttheimportanceofembeddingorganizationandsemanticoverlapindrivinge ective
+memoryevolution.FurtheranalysisofmemorypruningratescanbefoundinAppendix
+B.2
+comparesstepe ciencyacrossfourenvironments.Evolving-memorymethodsconsistently
+requirefewerstepstoreachcompletion,with
+achievingthestrongestandmoststable
+reductions(e.g.,from22.6to11.5stepsonAlfWorld).Thelightweight
+alsoperformcompetitively,showingthatsimpletask-levelevolutioncangreatlyimprovee ciency
+withoutextracomplexity.Overall,continualre nementnotonlyboostsaccuracybutalsomakes
+reasoningmorefocusedande cient.
+10
+Figure4
+ReMemperformancegainoverhistorybaselineversuswithin-datasettasksimilarity.
+Figure5
+Averagestepstocompletetasksacrossfourbenchmarks.Wecomparefourmethods:
+History,ExpRecent,ExpRAG,andReMem.Lowerisbetter.ReMemconsistentlyrequiresfewersteps
+tocompletetasksacrossalldatasets,demonstratingmoree cienttaskexecution..
+DirectionMethod
+AlfWorldScienceWorldAvg.
+SPSPSP
+Base0.500.730.320.740.410.74
+Easy
+Hard
+ExpRecent0.660.820.480.830.570.83
+ExpRAG0.770.870.370.710.570.79
+0.910.960.630.880.770.92
+ExpRecent0.720.850.470.800.600.83
+ExpRAG0.870.920.510.810.690.87
+0.940.970.680.900.810.94
+Table3
+Comparisonofmemory-basedagentsunderdi erentsequencedi cultydirections.Each
+cellreportsSuccess(S)andProgress(P).Easy
+HardandHard
+Easyindicatetaskordertransitions,
+andaverages(Avg)summarizeper-directionperformance.
+11
+ModelMethodAlfWorldScienceWorldAvg.
+Amem0.490.730.310.740.400.74
+SelfRAG0.470.730.340.730.410.73
+Mem00.490.730.360.740.430.74
+DC-Cu0.520.750.340.730.430.74
+DC-RS0.510.740.380.740.450.74
+AWM0.550.760.320.720.440.74
+ExpRecent0.620.800.340.740.480.77
+ExpRAG0.760.900.270.630.520.77
+0.920.960.690.910.810.94
+Amem0.220.570.390.750.310.66
+SelfRAG0.250.580.360.710.310.65
+Mem00.250.590.340.710.300.65
+DC-Cu0.200.560.360.720.280.64
+DC-RS0.210.570.360.710.290.64
+AWM0.190.560.360.740.280.65
+ExpRecent0.220.57
+0.590.86
+0.410.72
+ExpRAG0.250.600.510.780.380.69
+0.570.76
+0.500.75
+0.540.76
+Table4
+ResultswithbothsuccessfulandfailedtaskexperiencesonAlfWorldandScienceWorld.
+EachcellreportsSuccess(S)andProgress(P).Horizontalrulesseparatemethodfamilies.Bold
+numbersdenotethebestresultspermetricwithineachmodel.
+4.5.
+TaskSequence:Easyv.s.Hard(RQ3)
+Table
+examineshowmemory-basedagentsadapttochangesintaskdi culty.Baselinemethods
+exhibitnoticeabledegradationwhenmovingfromeasiertohardertasks,revealinglimitedrobustness
+underdistributionshifts.Incontrast,evolving-memoryagents,particularly
+,maintain
+strongandconsistentperformanceacrossbothdirections,reachingupto0.94/0.97successand
+progressintheHard
+Easysetting.Thisstabilityshowsthatcontinualre ectionenables
+toretaintransferableknowledgeevenastaskcomplexityvaries.Theresultsfurtherindicatethat
+thedesignoftasksequences,especiallytheorderingofdi cultylevels,hasasubstantialimpact
+onevaluatingmemoryadaptation.Theyalsosuggestthatwell-structuredtaskprogressionscan
+activelyfacilitatelearningbyallowingmodelstobuildonpriorexperiencesandgeneralizeacross
+increasinglycomplexchallenges.Together,these ndingshighlighttheimportanceofstandardized
+andthoughtfullyorganizedtasksequencesforbothfairevaluationande ectivemodeldevelopment
+infuturebenchmarks.
+4.6.
+AnalysisofFeedback(RQ4)
+evaluateshowagentsperformwhenbothsuccessfulandfailedtaskexperiencesarestoredin
+memory.Baselinemethodsexperienceaclearperformancedropwhenexposedtoun lteredfailures,
+indicatingthatnaivememoryaccumulationintroducesnoiseanddisruptssubsequentretrieval.In
+contrast,evolving-memoryapproaches,particularly
+,remainrobustbyactivelyre ningstored
+experiences,achievingthehighestoverallsuccessandprogressratesunderbothClaudeandGemini
+backbones.Theseresultsdemonstratethatselectiveutilization,whichinvolveslearningfromsuccesses
+whileappropriatelyleveraginginformationfromfailures,iscrucialforstabletest-timeadaptation.
+Theyfurtherhighlightthatmemoryre nementplaysacentralroleinhandlingimperfectexperiences
+andsuggestthatfutureworkshouldexplorefailure-awarestrategiesformemoryevolution.
+12
+Figure6
+Cumulativesuccessrateacrossfourinteractiveagentdatasets.ReMem(solidblue)outper-
+formstheHistorybaseline(dashedred)onALFWorld,BabyAI,PDDL,andScienceWorldtasks.The
+rollingaverageshowsperformancetrendsasmoretaskinstancesareevaluated.
+4.7.
+Performancew.r.tTimeSteps(RQ5)
+showsthecumulativeaccuracyastasksprogressacrossfourinteractiveenvironments.The
+curvesmainlyservetocompare
+withtheHistorybaseline,asindividualtrajectoriescarry
+limitedstandalonemeaning.Acrossallenvironments,
+consistentlyachievesfasteradaptation
+andmorestableretentionovertime.Theseresultshighlightthatcontinualre ectionenables
+tosustainperformanceacrosslongtasksequences,illustratingitsrobustnessintest-timelearning.
+Morecomparativeresultsonsingle-turntasksarepresentedinAppendix
+B.3
+5.
+Conclusion
+Self-evolvingmemoryisafundamentalyetunderexploredaspectofLLMcapability.Whilepriorwork
+centersonstaticconversationalrecall,itoverlookshowmodelsaccumulateandreuseexperience
+acrossevolvingtaskstreams.Evo-Memory llsthisgapbytransformingstaticdatasetsintostreaming
+trajectories,systematicallyevaluatinghowLLMsretrieve,adapt,andre nememorythroughinterac-
+tion.Ourresultsshowthatmemorycansubstantiallyenhanceperformancebutremainsfragilein
+stabilityandproceduralreuse.Tofosterprogress,weintroduceExpRAGforexperienceretrievaland
+ReMemforinterleavingreasoning,action,andmemoryupdates.WehopeEvo-Memoryservesasa
+uni edplatformforbuildingLLMswithreliableandcontinuallyimprovingmemory.
+13
+References
+Anthropic.IntroducingClaude4:ClaudeOpus4andClaudeSonnet4.
+https://www.anthropic.
+com/news/claude-4
+,2025.Accessed:2025-09-10.
+A.Asai,Z.Wu,Y.Wang,A.Sil,andH.Hajishirzi.Self-rag:Self-re ectiveretrievalaugmented
+generation.In
+NeurIPS2023workshoponinstructiontuningandinstructionfollowing
+,2023.
+A.Asai,Z.Wu,Y.Wang,A.Sil,andH.Hajishirzi.Self-rag:Learningtoretrieve,generate,andcritique
+throughself-re ection.In
+TheTwelfthInternationalConferenceonLearningRepresentations,ICLR
+2024,Vienna,Austria,May7-11,2024
+.OpenReview.net,2024a.URL
+https://openreview.
+net/forum?id=hSyW5go0v8
+throughself-re ection.2024b.
+J.Chen,S.Xiao,P.Zhang,K.Luo,D.Lian,andZ.Liu.Bgem3-embedding:Multi-lingual,multi-
+functionality,multi-granularitytextembeddingsthroughself-knowledgedistillation,2023.
+R.Chen,Z.Li,andY.Wang.Llm-as-optimizer:Self-improvingagentsthroughdi erentiablefeedback.
+arXivpreprintarXiv:2503.04567
+,2025.
+M.Chevalier-Boisvert,D.Bahdanau,S.E.-T.Lahlou,L.Willems,H.Lozano,L.Dassa,S.Kim,J.Pineau,
+andA.Courville.Babyai:Aplatformtostudythesamplee ciencyofgroundedlanguagelearning.
+In
+InternationalConferenceonLearningRepresentations(ICLR)
+,2019.
+P.Chhikara,D.Khant,S.Aryan,T.Singh,andD.Yadav.Mem0:Buildingproduction-readyaiagents
+withscalablelong-termmemory.
+arXivpreprintarXiv:2504.19413
+G.Comanici,E.Bieber,M.Schaekermann,I.Pasupat,N.Sachdeva,I.Dhillon,M.Blistein,O.Ram,
+D.Zhang,E.Rosen,etal.Gemini2.5:Pushingthefrontierwithadvancedreasoning,multimodality,
+longcontext,andnextgenerationagenticcapabilities.
+arXivpreprintarXiv:2507.06261
+Y.Gao,Z.Sun,J.Huang,H.Zhang,Y.Wang,Y.Luo,andC.Finn.Asurveyofself-evolvingagents:
+Onpathtoarti cialsuperintelligence.
+arXivpreprintarXiv:2507.21046
+M.Hausknecht,P.Ammanabrolu,M.-A.Ct,andX.Yuan.Interactive ctiongames:Acolossal
+adventureforreinforcementlearningagents.In
+AAAIConferenceonArti cialIntelligence
+,2020.
+Y.Hu,Y.Wang,andJ.McAuley.Evaluatingmemoryinllmagentsviaincrementalmulti-turn
+interactions.
+arXivpreprintarXiv:2507.05257
+J.Huang,R.Zhao,Y.Li,andY.Zhou.Self-discoveringagents:Autonomousskillexpansionvia
+continualinteraction.
+arXivpreprintarXiv:2506.08791
+HuggingFaceH4.AIME-24:AmericanInvitationalMathematicsExamination2024Benchmark.
+https:
+//huggingface.co/datasets/HuggingFaceH4/aime_2024
+,2024.Accessed:2025-09-
+10.
+HuggingFaceH4.AIME-25:AmericanInvitationalMathematicsExamination2025Benchmark.
+//huggingface.co/datasets/HuggingFaceH4/aime_2025
+,2025.Accessed:2025-09-
+Y.IwasawaandY.Matsuo.T3a:Test-timetemplateadjustmentsfordomaingeneralization.In
+AdvancesinNeuralInformationProcessingSystems(NeurIPS)
+,2021.
+14
+LangChaincontributors.Langchain,2025.URL
+https://github.com/langchain-ai/
+langchain
+.MITLicense.
+P.Lewis,E.Perez,A.Piktus,F.Petroni,V.Karpukhin,N.Goyal,H.Kttler,M.Lewis,W.Yih,
+T.Rocktschel,S.Riedel,andD.Kiela.Retrieval-augmentedgenerationforknowledge-intensiveNLP
+tasks.InH.Larochelle,M.Ranzato,R.Hadsell,M.Balcan,andH.Lin,editors,
+AdvancesinNeural
+InformationProcessingSystems33:AnnualConferenceonNeuralInformationProcessingSystems2020,
+NeurIPS2020,December6-12,2020,virtual
+,2020.URL
+https://proceedings.neurips.
+cc/paper/2020/hash/6b493230205f780e1bc26945df7481e5-Abstract.html
+Z.Li,S.Song,H.Wang,S.Niu,D.Chen,J.Yang,C.Xi,H.Lai,J.Zhao,Y.Wang,J.Ren,Z.Lin,J.Huo,
+T.Chen,K.Chen,K.-R.Li,Z.Yin,Q.Yu,B.Tang,H.Yang,Z.Xu,andF.Xiong.Memos:Anoperating
+systemformemory-augmentedgeneration(mag)inlargelanguagemodels.
+ArXiv
+,abs/2505.22101,
+2025.URL
+https://api.semanticscholar.org/CorpusID:278960153
+X.Liang,B.Wang,H.Huang,S.Wu,P.Wu,L.Lu,Z.Ma,andZ.Li.Scm:Enhancinglargelanguage
+modelwithself-controlledmemoryframework.2023.URL
+https://api.semanticscholar.
+org/CorpusID:258331553
+J.Liu.LlamaIndex,112022.URL
+https://github.com/jerryjliu/llama_index
+J.Liu,N.Loo,H.Li,R.Chen,X.Chen,T.Hospedales,andY.Wang.Ttt++:Whendoestest-time
+trainingfailorthrive?In
+IEEE/CVFInternationalConferenceonComputerVision(ICCV)
+A.Maharana,D.-H.Lee,S.Tulyakov,M.Bansal,F.Barbieri,andY.Fang.Evaluatingverylong-
+termconversationalmemoryofllmagents.
+,abs/2402.17753,2024a.URL
+https://api.
+semanticscholar.org/CorpusID:268041615
+A.Maharana,D.-H.Lee,S.Tulyakov,M.Bansal,F.Barbieri,andY.Fang.Evaluatingverylong-term
+conversationalmemoryofllmagents.In
+Proceedingsofthe62ndAnnualMeetingoftheAssociation
+forComputationalLinguistics(Volume1:LongPapers)
+,pages1385113870,2024b.
+A.Modarressi,A.Imani,M.Fayyaz,andH.Schtze.Ret-llm:Towardsageneralread-writememoryfor
+largelanguagemodels.
+,abs/2305.14322,2023.URL
+org/CorpusID:258841042
+Y.Niu,Z.Li,B.Du,andD.Tao.E cienttest-timeadaptationviasample-e ciententropyminimization.
+,2022.
+S.Ouyang,W.Yu,K.Ma,Z.-Q.Xiao,Z.Zhang,M.Jia,J.Han,H.Zhang,andD.Yu.Repograph:
+Enhancingaisoftwareengineeringwithrepository-levelcodegraph.
+,abs/2410.14684,2024.
+URL
+https://api.semanticscholar.org/CorpusID:273502041
+C.Packer,V.Fang,S.G.Patil,K.Lin,S.Wooders,andJ.Gonzalez.Memgpt:Towardsllmsas
+operatingsystems.
+,abs/2310.08560,2023.URL
+org/CorpusID:263909014
+J.S.Park,C.O'Brien,C.J.Cai,M.R.Morris,P.Liang,andM.S.Bernstein.Generativeagents:
+Interactivesimulacraofhumanbehavior.In
+ACMSymposiumonUserInterfaceSoftwareand
+Technology(UIST)
+S.G.Patil,H.Li,T.Zhang,etal.Gorilla:Largelanguagemodelconnectedwithmassiveapis.
+arXiv
+preprintarXiv:2305.15334
+15
+P.Rasmussen,P.Paliychuk,T.Beauvais,J.Ryan,andD.Chalef.Zep:Atemporalknowledge
+grapharchitectureforagentmemory.
+,abs/2501.13956,2025.URL
+semanticscholar.org/CorpusID:275907122
+D.Rein,B.L.Hou,A.C.Stickland,J.Petty,R.Y.Pang,J.Dirani,J.Michael,andS.R.Bowman.Gpqa:
+Agraduate-levelgoogle-proofq&abenchmark.In
+FirstConferenceonLanguageModeling
+,2024.
+N.Shinn,F.Cassano,B.Labash,A.Gopinath,K.Narasimhan,andS.Yao.Re exion:language
+agentswithverbalreinforcementlearning.In
+NeuralInformationProcessingSystems
+,2023.URL
+https://api.semanticscholar.org/CorpusID:258833055
+M.Shridhar,J.Thomason,D.Gordon,Y.Bisk,W.Han,R.Mottaghi,L.Zettlemoyer,andD.Fox.
+Alfworld:Aligningtextandembodiedenvironmentsforinteractivelearning.In
+International
+ConferenceonLearningRepresentations(ICLR)
+M.Suzgun,M.Yuksekgonul,F.Bianchi,D.Jurafsky,andJ.Zou.Dynamiccheatsheet:Test-time
+learningwithadaptivememory.
+arXivpreprintarXiv:2504.07952
+D.Wang,E.Shelhamer,S.Liu,B.Olshausen,andT.Darrell.Tent:Fullytest-timeentropyminimization.
+G.Wang,Y.Wang,Z.Wu,G.Chen,Z.Huang,H.Zhao,S.Han,V.Koltun,J.Zhu,andK.Lin.Voyager:
+Anopen-endedembodiedagentwithlargelanguagemodels.In
+AdvancesinNeuralInformation
+ProcessingSystems(NeurIPS)
+Y.Wang,L.Yuan,K.Gopalakrishnan,A.Narayan-Chen,A.Fang,andM.Hausknecht.Scienceworld:
+Isyouragentsmarterthana5thgrader?In
+NeurIPS
+Z.Z.Wang,J.Mao,D.Fried,andG.Neubig.Agentwork owmemory.
+,abs/2409.07429,2024.
+https://api.semanticscholar.org/CorpusID:272592995
+C.-K.Wu,Z.R.Tam,C.-Y.Lin,Y.-N.V.Chen,andH.-y.Lee.Streambench:Towardsbenchmarking
+continuousimprovementoflanguageagents.
+AdvancesinNeuralInformationProcessingSystems
+37:107039107063,2024a.
+D.Wu,H.Wang,W.Yu,Y.Zhang,K.-W.Chang,andD.Yu.Longmemeval:Benchmarkingchat
+assistantsonlong-terminteractivememory.In
+TheThirteenthInternationalConferenceonLearning
+Representations
+assistantsonlong-terminteractivememory.
+,abs/2410.10813,2024b.URL
+semanticscholar.org/CorpusID:273345961
+W.Xu,K.Mei,H.Gao,J.Tan,Z.Liang,andY.Zhang.A-mem:Agenticmemoryforllmagents.
+preprintarXiv:2502.12110
+S.Yan,X.Yang,Z.Huang,E.Nie,Z.Ding,Z.Li,X.Ma,H.Schtze,V.Tresp,andY.Ma.Memory-r1:
+Enhancinglargelanguagemodelagentstomanageandutilizememoriesviareinforcementlearning.
+arXivpreprintarXiv:2508.19828
+R.Yang,Q.Zhou,Y.Zhang,J.Zhang,X.Zhang,K.Zhang,S.Xu,W.Chen,H.Ma,W.Wang,etal.
+Pddlbench:Benchmarkingllmsonsymbolicplanningwithpddl.
+arXivpreprintarXiv:2312.00754
+2023.
+16
+S.Yao,J.Zhao,D.Yu,N.Du,I.Shafran,K.R.Narasimhan,andY.Cao.React:Synergizingreasoning
+andactinginlanguagemodels.In
+Theeleventhinternationalconferenceonlearningrepresentations
+2022.
+S.Yao,J.Zhao,D.Yu,N.Du,I.Shafran,K.Narasimhan,andY.Cao.React:Synergizingreasoningand
+actinginlanguagemodels.In
+H.Yu,T.Chen,J.Feng,J.Chen,W.Dai,Q.Yu,Y.-Q.Zhang,W.-Y.Ma,J.Liu,M.Wang,etal.
+Memagent:Reshapinglong-contextllmwithmulti-convrl-basedmemoryagent.
+arXivpreprint
+arXiv:2507.02259
+M.Zhang,K.Ahuja,K.-C.Lee,T.Zhang,andC.Finn.Memo:Test-timerobustnessviaadaptation
+andaugmentation.In
+R.Zhao,Y.Li,Z.Qian,X.Wang,W.Zhao,andJ.Huang.Self-evolvingagents:Continualtest-time
+learningthroughmemoryandre ection.
+J.Zheng,X.Cai,Q.Li,D.Zhang,Z.Li,Y.Zhang,L.Song,andQ.Ma.Lifelongagentbench:Evaluating
+llmagentsaslifelonglearners.
+arXivpreprintarXiv:2505.11942
+Y.Zheng,T.Li,H.Li,C.Zhao,J.Wang,Z.Zhang,S.Deng,N.Zhang,andH.Chen.Mmlu-pro:
+Amorerobustandchallengingmulti-tasklanguageunderstandingbenchmark.
+arXiv:2406.01574
+W.Zhong,L.Guo,Q.-F.Gao,H.Ye,andY.Wang.Memorybank:Enhancinglargelanguagemodels
+withlong-termmemory.
+,abs/2305.10250,2023.URL
+org/CorpusID:258741194
+Y.Zhou,Z.Sun,J.Huang,K.-H.Lee,Y.Luo,andC.Finn.Eureka:Human-levelrewarddesignvia
+codinglargelanguagemodels.
+arXivpreprintarXiv:2402.10654
+Z.Zhou,A.Qu,Z.Wu,S.Kim,A.Prakash,D.Rus,J.Zhao,B.K.H.Low,andP.P.Liang.MEM1:
+Learningtosynergizememoryandreasoningfore cientlong-horizonagents.
+arXiv:2506.15841
+H.Zhuang,B.Zhang,Y.Wang,Y.Xie,Z.Wang,Q.Zhang,H.Zhang,C.Zhang,X.Zhou,J.He,etal.
+Agentboard:Evaluatinglong-termmemoryandgeneralizationinlargelanguagemodelagents.
+arXivpreprintarXiv:2401.13178
+17
+Appendix
+Contents
+AExperimentalDetails
+19
+A.1Datasets
+...........................................
+A.2Con guration
+........................................
+A.3Evaluation
+..........................................
+20
+A.4Methods
+BExperiments
+21
+B.1AdditionalExperiments
+...................................
+B.2AdditionalAnalysisofMemoryPruning
+..........................
+22
+B.3AdditionalComparativeCurvesonSingle-turnTasks
+...................
+CPrompts
+23
+DLimitations
+24
+EUseofLargeLanguageModels
+18
+A.
+ExperimentalDetails
+follows,wedescribethebenchmarkdatasets,metrics,con gurationsandthemethodscomparedin
+details.
+A.1.
+Weevaluateourapproachonadiversesuiteofbenchmarksthatspanfactualknowledge,reasoning,
+mathematics,programming,andgoal-orientedinteraction.
+We rstintroduceasuiteofsingle-turndatasetsdesignedtoevaluatediversereasoningabilities.
+)extendstheoriginalMMLUbenchmarkwithstrongerrobustness
+andchallengeby lteringdataleakage,reducingambiguity,andintroducingmoredi cultquestions
+acrossdomainssuchasengineering,philosophy,andeconomics,makingitamorereliabletestbed
+forassessingmulti-disciplinaryreasoning.
+)isagraduate-level
+benchmarkfeaturingexpert-written,Google-proofquestionsinphysicsandrelatedsciences,with
+itsDiamondsplitbeingthemostchallengingandrequiringrigorousmulti-stepreasoning.
+)consistofOlympiad-stylemathematicsproblemsfrom
+the2024and2025AmericanInvitationalMathematicsExaminations,testingsymbolicmanipulation
+andproblem-solvingunderstrictexact-matchcriteria.Finally,
+Patiletal.
+)assesses
+amodel'sabilitytoidentifyandcon gureexternalAPIs,re ectingpracticaltool-usecapabilities.
+Wethenevaluateonasuiteofmulti-turn,goal-orientedbenchmarksdesignedtoevaluatemem-
+oryinembodiedandinteractiveenvironments.Itincludesseveralrepresentativedomains:
+Alf-
+World
+)forhouseholdinstructionfollowing,
+)forgroundednavigationandcompositionalreasoning,
+foropen-endedscienti cexperimentation,
+)fortext-basedgame
+exploration,and
+)forsymbolicplanning.Together,theseenviron-
+mentsemphasizelong-horizonreasoning,sequentialdecision-making,andtheuseofaccumulated
+experiencetoachievecomplexgoals.
+Together,thesedatasetsformacomprehensivebenchmarksuitethatevaluatesfactualrecall,
+domainexpertise,mathematicalreasoning,andproceduralmemoryininteractivesettings.This
+diversityenablesauni edevaluationofbothstaticandevolvingcapabilities,re ectinghowLLMs
+learn,act,andadaptacrossacademicandreal-worldscenarios.
+A.2.
+Con guration
+Fore cientretrievalandfaircomparisonacrossmethods,weutilizetheBAAI/bge-base-en-v1.5(
+Chen
+)encoderastheretrievertoindexbothqueriesandmemoryitems.Duringinference,the
+currentquestionisencodedasaqueryandcomparedwithallstoredmemoryembeddings,retrieving
+thetop-
+mostrelevantitems(default
+)forcontextualaugmentation.Thissettingensures
+aconsistentretrievalbudgetacrossallmethods.Fore ciency,retrievedtextsandtaskinputsare
+truncatedto twithinthesamepromptlengthconstraintusedbythegenerationmodels.
+Whileallbaselinesadoptthesameretrievalcon guration,certainmethods(e.g.,
+SelfRAG
+)introduceadditionalreasoningmodulesthatdetermine
+whethertoretrieve
+whatto
+retrieve
+ateachstep.Theseadaptivebehaviorsoperateontopofthesameretrievalpooltoensure
+comparability.
+Acrossallexperiments,wemaintainauni edtasksequenceorderingwithineachdataset,ensuring
+consistentmemoryevolutiondynamicsforallmodels.Unlessotherwisespeci ed,retrievaland
+generationoperatewithinthesamepipeline,andtheretrieveditemsareappendedtotheprompt
+followingtheorderofrelevance,frommosttoleastsimilar.
+LLMbackbones
+).
+A.3.
+Evo-Memoryevaluatesbothtaskperformanceandmemoryqualityalongfourkeydimensions:
+Answeraccuracy.
+EvaluateswhethertheLLMproducescorrectoutputsacrosstasks,re ectingits
+abilitytoincorporatepastexperiencesintoinference.
+Successrate.
+MeasureswhethertheLLMagentsuccessfullycompletestaskgoals,indicatingits
+overalle ectivenessininteractiveorgoal-orientedsettings.
+Stepe ciency.
+Tracksthenumberofstepsrequiredtocompleteagoal,assessingwhethermemory
+usageenablesconciseandscalablereasoning.
+Sequencerobustness.
+ExamineswhethertheLLMmaintainsconsistentknowledgeandperfor-
+manceacrossvaryingtaskorders,re ectingitsabilitytostablyreusepriorexperiences.
+A.4.
+WebenchmarkEvo-Memorywithawidespectrumofagentandmemoryarchitecturestostudyhow
+di erentdesignsimpact
+test-timememoryevolution
+.Allmethodsareinstantiatedontwostrong
+:Gemini-2.5(
+)andClaude-3.5/3.7(
+).Our
+comparisonsisolatetheimpactofmemoryarchitectureandupdatestrategy.Di erencesinbackbone
+capabilityarenotthefocusofthestudy.Wegrouptheevaluatedapproachesintofourmajorfamilies:
+AgentPipelineswithoutPersistentMemory.
+ReAct
+)servesasarepresentative
+reasoningactionpipeline,wherememoryislimitedtotheimmediatecontext.Itgeneratesinterleaved
+reasoningtracesandtoolcallsbutdoesnotexplicitlystoreorevolveinformation.
+extends
+thispipelinewithalightweightagenticmemorythatcachesrecentobservationsandre ections.It
+providesaminimalformofexperiencereusewithoutdedicatedsearchorupdatepolicies,forminga
+bridgebetweenmemory-freeagentsandadaptivememorysystems.
+AdaptiveAgenticMemoryMethods.
+Thisgroupfocusesonadaptiveretrievalandself-evolving
+memory.
+SelfRAG
+)integratesdynamicretrievalandre ectiontoadaptively
+groundreasoninginpriorcontexts.
+MemOS
+Mem0
+LangMem
+)implementstructured,agent-levelmemorysystemsthat
+supportread,write,andupdateoperations.Withinouruni edinterface,retrievalcorrespondstothe
+stageandupdatescorrespondto
+.Thesemethodsrepresentadaptivelong-termagents
+capableofcontinualre nement.
+Memory-BasedAgentsforProceduralMemory.
+DynamicCheatsheet(DC)
+AgentWork owMemory(AWM)
+)emphasizethereuseofprocedural
+knowledge,encodinghow-toinformationratherthanstaticfacts.WeevaluatetwoDCvariants,
+DC-
+RS
+(retrieval-based)and
+DC-Cu
+(curated),toanalyzehowwork owinductionandupdatemechanisms
+Figure7
+Memorypruningratesbydataset.Retained(blue)andpruned(coral)memoryproportions
+showvaryingselectivityacrossbenchmarks.
+in uencestabilityandtransfer.Thesemethodstestthepotentialofproceduralmemoryasreusable
+strategyrepositories.
+Proposed:EvolvingMemoryFramework.
+maintainscondensedepisodictracesof
+recenttasktrajectories,whileour
+familyintegratestheprinciplesofretrieval-augmented
+reasoningwithexplicit
+appliesiterativere ectionandsynthesistore ne
+memoryembeddingsovertime.Together,thesemethodsinstantiateEvo-Memory'sdesignphilosophy,
+treatingreasoning,acting,andmemoryre nementasinterleavedprocessesthatco-adaptduring
+deployment,enablingcontinualself-improvementandmorehuman-likeadaptation.
+B.
+Weprovidemoreexperimentsinthefollowing.
+B.1.
+AdditionalExperiments
+Wefurthervalidateour ndingsthroughextensivebenchmarkingacrossmultiplemodelfamilies
+(Gemini-2.5-Flash-Lite,Claude-3.5-Haiku)anddiversedatasets,asshowninTables
+.The
+performancetrendsremainconsistentacrossallsettings.Onbothmulti-turnembodiedreasoningtasks
+(AlfWorld,BabyAI,PDDL,ScienceWorld)andsingle-turnreasoningtasks(AIME-24/25,GPQA,MMLU-
+Pro,ToolBench),ReMemconsistentlyoutperformsconventionalbaselinesandadaptiveretrieval
+methodsacrossmodelbackbones.Theseresultscon rmthattheadvantagesofevolving-memory
+architecturesaremodel-agnostic,highlightingcontinualtask-levelre ectionasageneralmechanism
+forimprovingadaptabilityinproblem-solving.
+Figure8
+Cumulativeaccuracycomparisonacrossmodelvariantsandbenchmarks.ReMem(solid
+blue)demonstratesconsistentimprovementsovertheHistorybaseline(dashedred)acrossGemini-2.5-
+Flash-LiteandClaude-3.7-SonnetmodelsonGPQA,TOOLBENCH,andMMLU_PRO_ENGdatasets.The
+curvesshowlearningtrendsastaskinstancesaccumulate,withReMemachievingfasterconvergence
+andhigher nalaccuracy.
+B.2.
+AdditionalAnalysisofMemoryPruning
+showsmemorypruningratesacrossdatasets,revealingvaryingselectivityinmemory
+retention.Thepruningratiosdi ersubstantiallyacrossbenchmarks,whichappearsrelatedto
+taskdiversityanddomaincoverage.DatasetswithbroaderdomaincoveragesuchasGPQA,which
+encompassesdiverseproblemtypesacrossengineering,physics,andotherdomains,exhibithigher
+pruningrates(36.8%),suggestingthatmorememoriesaredeemedredundantacrossheterogeneous
+tasks.Incontrast,datasetswithmoreconcentratedproblemtypeslikeAIMEshowlowerpruning
+rates(17.5%and10.8%respectively),indicatingthatmemoriesremainmorerelevantduetohigher
+tasksimilarity.Thispatternsuggeststhatthepruningmechanisme ectivelyidenti esanddiscards
+domain-irrelevantexperiences,thoughthepreciserelationshipbetweentaskdiversityandmemory
+selectivitywarrantsfurtherinvestigation.
+B.3.
+AdditionalComparativeCurvesonSingle-turnTasks
+presentscumulativeaccuracycurvescomparingReMemwiththebaselineacrosssingle-turn
+reasoningbenchmarksandmodelvariants.Astaskinstancesaccumulate,ReMemshowsconsistent
+improvementonGPQA,ToolBench,andMMLU-PRO(Engineer)forbothGemini-2.5-Flash-Liteand
+Claude-3.7-Sonnet.Similartothemulti-turnresults,Historyperformscomparablyatthebeginning
+duetothecold-startphase,butReMemquicklysurpassesitasmoretasksareprocessed,indicating
+thecumulativeadvantageofcontinualtask-leveladaptation.
+C.
+Prompts
+MemoryPromptTemplateforMulti-turnDataset
+==================================================
+ENVIRONMENTINSTRUCTIONS
+[Detailedtaskenvironmentdescriptionandrules]
+Example:Gotokitchen,pickupapple,putitinbag,etc.
+EXAMPLEDEMONSTRATIONS
+[Staticfew-shotexamples]
+Example1:Goal:...|Action:...|Observation:...
+Example2:Goal:...|Action:...|Observation:...
+RELEVANTEXPERIENCEFROMSIMILARTASKS
+[Experience#1]
+Goal:[similargoal]
+Trajectory:[actionsequence]
+Correctness:[success/failure]
+[Experience#2,#3,...]
+YOURCURRENTTASK
+Goal:
+[speci ctaskgoal]
+Help:type'checkvalidactions'ifactionfails
+Help:type'inventory'tocheckitems
+RECENTHISTORY
+Observation:[initialenvironmentstate]
+Action:[previousaction]
+Observation:[resultofpreviousaction]
+Observation:[currentstate]
+OUTPUTFORMAT
+YouMUSTrespondinEXACTLYONEoftheseformats:
+Format1-Pruneexperiences:
+Think-Prune:<IDs>
+Removeunhelpfulexperiencesfrom'RELEVANTEXPERIENCE'section(e.g.,1,3or2-4)
+Format2-Internalreasoning:
+Think:<yourreasoning>
+Free-formexplanationofyournextstep
+Format3-Executeaction:
+Action:<exactcommand>
+MustbevalidcommandfromENVIRONMENTINSTRUCTIONSwithexactnamesfromRECENTHISTORY
+MemoryPromptTemplateforSingle-turnDataset
+YouareahelpfulassistantwithaccesstoLOCALEXPERIENCEMEMORY.Eachmemorymay
+containpastexperience,rationales,domains,andskills.BelowaresomeretrievedLOCAL
+EXPERIENCEMEMORIES:
+[Retrieved/synthesizedmemories]
+Nowsolvethefollowingproblem.
+Question:
+[Yourquestionhere]
+Provideyouroutputinthefollowingformat:
+Rationale:
+yourshortreasoning,maycitememoryifuseful
+FinalAnswer:
+your nalanswer
+D.
+Limitations
+WhileEvo-Memoryo ersacomprehensiveevaluationofself-evolvingmemory,severalpractical
+constraintsremain.DuetobudgetandAPIlimits,wefocusonaselectedsetofstrongLLMsrather
+thanexhaustivelycoveringallavailablemodels.Additionalevaluationsonopen-weightormultilingual
+modelscouldfurthervalidatethegeneralityofour ndings.Moreover,ourbenchmarkprimarily
+emphasizestextualandgoal-orientedtasks;extendingittorichermultimodalorreal-worldenvi-
+ronmentswouldprovideamorecompletepictureofcontinualmemoryevolution.Despitethese
+limitations,thecurrentstudyalreadyspansdiversedomains,tasks,andarchitectures,o eringasolid
+foundationforfutureextensions.
+E.
+UseofLargeLanguageModels
+Duringthepreparationofthispaper,wemadelimitedandcontrolleduseoflargelanguagemodels
+(LLMs),speci callyChatGPT,asanauxiliarywritingaid.TheLLMwasusedonlyforstylistic
+re nement,includingimprovementsinclarity,grammar,andreadabilityoftextoriginallydraftedby
+theauthors.Allscienti cideas,analyses,experiments,andconclusionswerefullydeveloped,written,
+andveri edbytheauthors.Thus,LLMswereemployedsolelyasalanguage-editingtool,without
+contributingtotheintellectualorscienti ccontentofthework.
+ReMem0.660.81
+Gemini2.5Pro
+Baseline0.040.390.370.470.200.330.220.600.210.45
+History0.190.520.400.480.250.380.600.840.360.56
+ReAct0.020.260.430.550.130.220.300.680.220.43
+Amem0.160.500.420.490.230.380.590.850.350.56
+SelfRAG0.160.490.430.500.220.350.570.840.340.55
+Mem00.160.490.410.490.220.370.530.810.330.54
+DC-Cu0.170.500.400.470.280.400.530.820.350.55
+DC-RS0.180.510.420.500.270.400.590.850.370.57
+AWM0.200.520.380.460.200.370.570.830.340.54
+ExpRecent0.360.610.54
+0.640.350.470.690.89
+0.490.64
+ExpRAG0.380.640.460.530.280.430.610.840.430.61
+ReMem0.510.700.560.64
+0.250.380.660.86
+0.500.65
+Claude3.5Haiku
+Baseline0.110.330.380.520.150.320.080.370.180.39
+History0.280.580.380.570.180.380.120.490.240.51
+ReAct0.240.580.350.520.320.530.160.550.270.55
+Amem0.240.550.370.580.170.350.120.450.230.48
+SelfRAG0.260.580.380.590.220.370.140.490.250.51
+Mem00.270.560.370.570.170.370.080.450.220.49
+DC-Cu0.240.550.370.580.170.370.120.450.230.49
+DC-RS0.240.550.370.580.170.370.120.450.230.49
+AWM0.240.550.370.580.170.370.120.450.230.49
+ExpRecent0.480.650.400.570.150.320.320.640.340.55
+ExpRAG0.650.740.540.64
+0.430.61
+0.420.680.510.67
+ReMem0.690.800.490.600.430.610.440.750.510.69
+Table5
+25
+AIME24AIME25GPQAMMLU-Pro(Eco.)MMLU-Pro(Eng.)MMLU-Pro(Philo.)ToolBench
+Avg.
+Claude3.5
+Baseline0.360.680.420.550.81/0.640.38
+History0.370.700.430.550.81/0.630.38
+ReAct0.350.690.430.540.81/0.640.38
+Amem0.340.690.430.530.82/0.630.37
+SelfRAG0.360.700.440.560.83/0.650.39
+MemOS0.370.700.420.550.81/0.640.38
+Mem00.360.700.420.550.82/0.640.38
+LangMem
+0.510.78
+0.460.610.81/0.63
+0.43
+DC-RS0.360.680.410.560.82/0.640.38
+AWM0.330.670.420.530.81/0.630.37
+DC-Cu0.330.650.390.540.82/0.630.36
+ExpRecent0.420.690.460.590.85/0.630.40
+ExpRAG0.400.73
+0.49
+0.610.87/0.670.41
+ReMem0.390.710.47
+0.620.87/0.68
+0.41
+History0.600.470.430.840.420.780.31/0.260.55
+Gemini2.5Flash-Lite
+Baseline0.53
+0.370.730.340.600.78/0.610.58
+History0.400.330.310.740.300.590.58/0.470.49
+ReAct0.530.330.340.610.200.480.73/0.560.50
+Amem0.400.330.330.72
+0.34
+0.590.77/0.610.54
+0.57
+0.370.370.730.320.620.81/0.630.57
+MemOS0.53
+Mem00.53
+LangMem0.400.37
+0.48
+0.590.240.560.33/0.260.43
+DC-RS0.53
+0.340.590.180.360.73/0.560.49
+AWM0.030.030.350.610.200.480.77/0.600.44
+DC-Cu0.53
+0.330.550.160.320.71/0.560.47
+0.330.350.760.290.620.82/0.650.58
+ExpRAG0.470.370.38
+0.79
+0.32
+0.660.87/0.680.61
+0.330.380.77
+0.650.86/0.67
+0.61
+Table6
+Cross-datasetresultsofdiversememoryarchitecturesacrossmodels.Categoriesareseparated
+byhorizontalrules;results(ExactMatch
+)comparezero-shot,agentic,adaptive,
+procedural,andproposedmemorymethods.Dashes()indicatemethodswithpoororunreliable
+performance,whicharethereforeomitted.
+26
+X=
+2, 0.5
+Quadratic
+formula
+What are the
+solutions for 2x
++ 3x
+1 = 0?
+For 2x
+1,
+x =
+4ac
+2a
+What
+How
+Conversational
+Recall
+Experience
+Reuse
+!"#$%
+$"'()$*+,
+-%(.#/
+!"#$
+&'(#')*+,-".(/0
+12,!(#'",
+$"
+!"#$%&'()
+#*+,%&-$
+!""#$%
+&'()*(+,-%./*0'#(
+3(4#2,
+5677)*+,4,8((#"9,
+7(.47(,)*,7:",.)8/(;4'"
+.-/,%-)&0)&$)
+%1#)2&%31#$
+.-/,%-)&0)
+3--4#")"-5$
+6&$")%1#)%-/,%-
+7+%)&%)&$)%1#)
+/&38-5,9#
+!"#$"
+567,4,+/""*,86<,;)7:,
+4,$(/=,)*,)7,(*,7:",8(6*7"/>
+:+;)&0)-$)
+%1#)%,<4#
+6-82)&0)&$)
+%1#)3+;
+!"#$%&'(%)*+
+7+%)%1#/)-$)
+%1#)3-+$%#8
+12,!(#'"
+&"
+Response
+Synthesis
+Search
+Evolve
+LLM Response
+Generate reasoning:
+Internal
+thinking
+task decomposition
+Refine Memory
+Explore memory
+utilization: retrieve,
+prune, organize
+Execute an operation or
+produce
+an
+final
+response
+Memory
+Environment
+(a) Test
+time Evolution Setting
+(b) Illustrative Think
+Refine Loop

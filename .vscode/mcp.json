@@ -1,0 +1,22 @@
+{
+  "servers": {
+    "mcp-controller-local": {
+      "command": "C:\\Windows\\System32\\wsl.exe",
+      "args": [
+        "bash",
+        "-lc",
+        "cd /mnt/c/Users/WowSi/ai_dump_2/.ai/mcp-controller && /home/limz/.nvm/versions/node/v25.3.0/bin/node --import tsx src/mcp/stdioServer.ts"
+      ],
+      "env": {
+        "MCP_REPO_ROOT": "/mnt/c/Users/WowSi/ai_dump_2",
+        "MCP_TARGET_REPO_ROOT": "/mnt/c/Users/WowSi/ai_dump_2",
+        "MCP_ENABLE_DASHBOARD": "false",
+        "MCP_DASHBOARD_PORT": "8722",
+        "NEO4J_URI": "bolt://127.0.0.1:7687",
+        "NEO4J_USERNAME": "neo4j",
+        "NEO4J_PASSWORD": "123456789",
+        "NEO4J_DATABASE": "piopex"
+      }
+    }
+  }
+}

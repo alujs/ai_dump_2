@@ -1,0 +1,1 @@
+{"kind":"node","labels":["Entity","Recipe"],"properties":{"_graphops_updated_at":"2026-02-16T14:50:54.891Z","updated_at":"2026-02-16T00:00:00.000Z","name":"replace_lexeme_in_file","updated_by":"seed","description":"Structured replace operation for scoped patch execution.","id":"recipe:replace_lexeme_in_file","type":"recipe","version":1}}

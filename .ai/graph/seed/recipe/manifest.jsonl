@@ -1,0 +1,1 @@
+{"kind":"node","id":"recipe:replace_lexeme_in_file","labels":["Entity","Recipe"],"properties":{"id":"recipe:replace_lexeme_in_file","type":"recipe","version":1,"updated_at":"2026-02-16T00:00:00.000Z","updated_by":"seed","name":"replace_lexeme_in_file","description":"Structured replace operation for scoped patch execution."}}

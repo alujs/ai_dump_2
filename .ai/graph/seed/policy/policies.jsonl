@@ -1,0 +1,1 @@
+{"kind":"node","id":"policy:core:no_adp","labels":["Entity","Policy"],"properties":{"id":"policy:core:no_adp","type":"policy","version":1,"updated_at":"2026-02-16T00:00:00.000Z","updated_by":"seed","name":"no_adp","description":"Disallow introducing adp-* components in new feature work."}}
