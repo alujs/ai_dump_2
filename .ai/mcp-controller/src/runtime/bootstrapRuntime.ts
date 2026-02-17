@@ -37,7 +37,14 @@ export async function bootstrapRuntime(options: RuntimeBootstrapOptions = {}): P
     });
   }
 
-  const controller = new TurnController(events, connectors, indexing);
+  const controller = new TurnController(
+    events,
+    connectors,
+    indexing,
+    undefined, // memoryPromotion — use default
+    undefined, // recipes — use default
+    config.neo4j, // pass Neo4j config for proof chain builder [REF:PROOF-CHAINS]
+  );
   if (options.startDashboard ?? false) {
     await startHttpServer({
       controller,

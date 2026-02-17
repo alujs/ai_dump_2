@@ -3,7 +3,7 @@
 !.ai/auth/.gitignore
 !.ai/auth/README.md
 .ai/**/.env
-.ai/mcp-controller/node_modules/
+node_modules/
 .ai/mcp-controller/dist/
 /test-app/
 npm-debug.log*

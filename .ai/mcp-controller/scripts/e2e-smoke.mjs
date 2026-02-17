@@ -66,10 +66,10 @@ async function main() {
   try {
     await waitForHealth(baseUrl, 30_000);
 
-    const listResponse = await turn("list", {});
+    const listResponse = await turn("list_available_verbs", {});
     assert.equal(listResponse.state, "PLAN_REQUIRED");
     assert.ok(Array.isArray(listResponse.capabilities));
-    assert.ok(listResponse.capabilities.includes("submit_plan"));
+    assert.ok(listResponse.capabilities.includes("submit_execution_plan"));
     assert.equal(listResponse.subAgentHints.recommended, true);
     assert.ok(Array.isArray(listResponse.subAgentHints.suggestedSplits));
     assert.ok(listResponse.subAgentHints.suggestedSplits.length > 0);
@@ -92,11 +92,11 @@ async function main() {
     const planGraph = makePlanGraph({
       scopeAllowlistRef
     });
-    const submitResponse = await turn("submit_plan", { planGraph });
+    const submitResponse = await turn("submit_execution_plan", { planGraph });
     assert.equal(submitResponse.state, "PLAN_ACCEPTED");
     assert.equal(String(submitResponse.result.planValidation ?? ""), "passed");
 
-    const patchResponse = await turn("patch_apply", {
+    const patchResponse = await turn("apply_code_patch", {
       nodeId: "node_change",
       targetFile: "sample.txt",
       targetSymbols: ["TargetSymbol"],
@@ -110,7 +110,7 @@ async function main() {
     const changed = await readFile(targetFile, "utf8");
     assert.ok(changed.includes("bar"));
 
-    const astPatchResponse = await turn("patch_apply", {
+    const astPatchResponse = await turn("apply_code_patch", {
       nodeId: "node_change",
       targetFile: "sample.txt",
       targetSymbols: ["TargetSymbol"],
@@ -132,7 +132,7 @@ async function main() {
     const patchResultRaw = await readFile(patchResultPath, "utf8");
     assert.ok(patchResultRaw.includes("\"replacements\""));
 
-    const codeRunResponse = await turn("code_run", {
+    const codeRunResponse = await turn("run_sandboxed_code", {
       nodeId: "node_change",
       iife: "(async () => ({ status: 'ok', count: 1 }))()",
       declaredInputs: {},
@@ -148,7 +148,7 @@ async function main() {
     const codeRunArtifactRef = String(codeRunResponse.result.codeRun?.artifactBundleRef ?? "");
     assert.ok(codeRunArtifactRef.length > 0);
 
-    const sideEffectResponse = await turn("side_effect", {
+    const sideEffectResponse = await turn("execute_gated_side_effect", {
       nodeId: "node_side",
       commitGateId: "gate_1",
       files: [],
@@ -159,7 +159,7 @@ async function main() {
     assert.equal(sideEffectResponse.state, "EXECUTION_ENABLED");
     assert.equal(Boolean(sideEffectResponse.result.sideEffect?.accepted), true);
 
-    const recipeResponse = await turn("run_recipe", {
+    const recipeResponse = await turn("run_automation_recipe", {
       recipeId: "replace_lexeme_in_file",
       planNodeId: "node_change",
       validatedParams: {
@@ -180,7 +180,7 @@ async function main() {
           workId: failWorkId,
           agentId: failAgentId
         },
-        "patch_apply",
+        "apply_code_patch",
         {
           nodeId: "node_change",
           targetFile: "missing.txt",
@@ -201,7 +201,7 @@ async function main() {
         workId: budgetWorkId,
         agentId: budgetAgentId
       },
-      "patch_apply",
+      "apply_code_patch",
       {
         nodeId: "node_change",
         targetFile: "sample.txt",
@@ -222,7 +222,7 @@ async function main() {
         workId: budgetWorkId,
         agentId: budgetAgentId
       },
-      "list",
+      "list_available_verbs",
       {},
       "Budget follow-up list"
     );

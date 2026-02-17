@@ -17,6 +17,7 @@ export interface TurnRequest {
   originalPrompt?: string;
   verb: string;
   args?: Record<string, unknown>;
+  traceMeta?: Record<string, unknown>;
 }
 
 export interface PackInsufficiency {
@@ -42,14 +43,23 @@ export interface TurnResponse {
   state: RunState;
   outcome?: TurnOutcome;
   capabilities: string[];
+  /** Per-verb description, whenToUse, and argument schema so the agent knows what each verb does. */
+  verbDescriptions: Record<string, { description: string; whenToUse: string; requiredArgs: string[]; optionalArgs: string[] }>;
   scope: {
     worktreeRoot: string;
     scratchRoot: string;
   };
   result: Record<string, unknown>;
   denyReasons: string[];
+  /** When the controller denies a request, this tells the agent what to do next. */
+  suggestedAction?: {
+    verb: string;
+    reason: string;
+    args?: Record<string, unknown>;
+  };
   knowledgeStrategy: {
     strategyId: string;
+    contextSignature?: Record<string, unknown>;
     reasons: Array<{ reason: string; evidenceRef: string }>;
   };
   budgetStatus: {

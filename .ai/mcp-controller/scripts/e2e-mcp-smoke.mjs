@@ -77,10 +77,10 @@ async function main() {
     assert.ok(Array.isArray(tools.tools));
     assert.ok(tools.tools.some((tool) => tool.name === "controller.turn"));
 
-    const listResponse = await callTurn(runtime.controller, "list", {}, "MCP e2e smoke start");
+    const listResponse = await callTurn(runtime.controller, "list_available_verbs", {}, "MCP e2e smoke start");
     assert.equal(listResponse.state, "PLAN_REQUIRED");
     assert.ok(Array.isArray(listResponse.capabilities));
-    assert.ok(listResponse.capabilities.includes("submit_plan"));
+    assert.ok(listResponse.capabilities.includes("submit_execution_plan"));
     assert.equal(Boolean(listResponse.result.patchApplyOptions), true);
     assert.equal(Boolean(listResponse.result.patchApplyOptions?.customCodemodsAllowed), false);
 
@@ -94,7 +94,7 @@ async function main() {
 
     const submitPlanResponse = await callTurn(
       runtime.controller,
-      "submit_plan",
+      "submit_execution_plan",
       {
         planGraph: makePlanGraph({
           worktreeRoot,
@@ -109,7 +109,7 @@ async function main() {
 
     const patchResponse = await callTurn(
       runtime.controller,
-      "patch_apply",
+      "apply_code_patch",
       {
         nodeId: "node_change",
         targetFile: targetFileName,
@@ -127,7 +127,7 @@ async function main() {
 
     const astPatchResponse = await callTurn(
       runtime.controller,
-      "patch_apply",
+      "apply_code_patch",
       {
         nodeId: "node_change",
         targetFile: targetFileName,
@@ -148,7 +148,7 @@ async function main() {
 
     const codeRunResponse = await callTurn(
       runtime.controller,
-      "code_run",
+      "run_sandboxed_code",
       {
         nodeId: "node_change",
         iife: "(async () => ({ status: 'ok', count: 1 }))()",
@@ -168,7 +168,7 @@ async function main() {
 
     const sideEffectResponse = await callTurn(
       runtime.controller,
-      "side_effect",
+      "execute_gated_side_effect",
       {
         nodeId: "node_side",
         commitGateId: "gate_1",

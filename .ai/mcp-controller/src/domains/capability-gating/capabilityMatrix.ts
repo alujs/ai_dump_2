@@ -6,10 +6,10 @@ export function capabilitiesForState(state: RunState): string[] {
     return [...POST_PLAN_CAPABILITIES];
   }
   if (state === "BLOCKED_BUDGET") {
-    return ["list", "original_prompt", "escalate"];
+    return ["list_available_verbs", "get_original_prompt", "request_evidence_guidance"];
   }
   if (state === "FAILED" || state === "COMPLETED") {
-    return ["list", "original_prompt"];
+    return ["list_available_verbs", "get_original_prompt"];
   }
   return [...PRE_PLAN_CAPABILITIES];
 }

@@ -31,6 +31,12 @@ export interface ContextPackInput {
   requiresAgGridProof?: boolean;
   requiresFederationProof?: boolean;
   executionOptions?: Record<string, unknown>;
+  /** Raw Jira ticket payload — stored verbatim in the pack [REF:CP-SECTIONS] */
+  rawJiraTicket?: Record<string, unknown>;
+  /** Proof chain results if already computed (ag-Grid origin chain) */
+  agGridProofChain?: { chain: Array<{ kind: string; id: string; label: string; filePath?: string; source: string }>; complete: boolean; missingLinks: string[]; notes: string[] };
+  /** Proof chain results if already computed (federation chain) */
+  federationProofChain?: { chain: Array<{ kind: string; id: string; label: string; filePath?: string; source: string }>; complete: boolean; missingLinks: string[]; notes: string[] };
 }
 
 export interface ContextPackOutput {
@@ -131,6 +137,11 @@ export async function createContextPack(input: ContextPackInput): Promise<Contex
     expectations: {
       highSignalOnly: true,
       minimumSufficientContext: true
+    },
+    jiraTicket: input.rawJiraTicket ?? null,
+    proofChainTrace: {
+      agGridOriginChain: input.agGridProofChain ?? null,
+      federationChain: input.federationProofChain ?? null,
     }
   };
 
@@ -201,12 +212,28 @@ function selectAnchors(input: ContextPackInput): {
     reasons.push("definition_filled_from_rerank");
   }
 
+  // Merge proof chain results into anchor arrays [REF:PROOF-CHAINS]
+  const agGridOriginChain = input.anchors?.agGridOriginChain?.length
+    ? input.anchors.agGridOriginChain
+    : input.agGridProofChain?.chain?.map((link) => `${link.kind}:${link.label}`) ?? [];
+
+  const federationChain = input.anchors?.federationChain?.length
+    ? input.anchors.federationChain
+    : input.federationProofChain?.chain?.map((link) => `${link.kind}:${link.label}`) ?? [];
+
+  if (agGridOriginChain.length > 0 && !(input.anchors?.agGridOriginChain?.length)) {
+    reasons.push("ag_grid_origin_chain_filled_from_proof_chain_builder");
+  }
+  if (federationChain.length > 0 && !(input.anchors?.federationChain?.length)) {
+    reasons.push("federation_chain_filled_from_proof_chain_builder");
+  }
+
   return {
     anchors: {
       entrypoint,
       definition,
-      agGridOriginChain: input.anchors?.agGridOriginChain ?? [],
-      federationChain: input.anchors?.federationChain ?? []
+      agGridOriginChain,
+      federationChain
     },
     entrypointSource,
     definitionSource,

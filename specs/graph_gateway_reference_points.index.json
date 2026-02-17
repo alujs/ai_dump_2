@@ -1,0 +1,986 @@
+{
+  "source_markdown": "graph_gateway_reference_points.md",
+  "generated_at": "2026-02-16",
+  "ref_index": {
+    "DOC-OVERVIEW": {
+      "line": 2,
+      "text": "[REF:DOC-OVERVIEW]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs)"
+    },
+    "CITE-RULES": {
+      "line": 12,
+      "text": "[REF:CITE-RULES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > How to cite this doc"
+    },
+    "SEC-1": {
+      "line": 21,
+      "text": "[REF:SEC-1]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 1) Constraints and target outcomes"
+    },
+    "CONSTRAINTS": {
+      "line": 24,
+      "text": "[REF:CONSTRAINTS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 1) Constraints and target outcomes > 1.1 Hard constraints (ADP reality)"
+    },
+    "AUTHORITY": {
+      "line": 33,
+      "text": "[REF:AUTHORITY]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 1) Constraints and target outcomes > 1.2 Non\u2011negotiable principle: authority"
+    },
+    "DAY0-SUCCESS": {
+      "line": 40,
+      "text": "[REF:DAY0-SUCCESS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 1) Constraints and target outcomes > 1.3 Day\u20110 success criteria"
+    },
+    "CP-REQUIRED": {
+      "line": 42,
+      "text": "- An **authoritative ContextPack** with a real entrypoint + real definition, plus required proof chains (federation, UI origin) when applicable. [REF:CP-REQUIRED]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 1) Constraints and target outcomes > 1.3 Day\u20110 success criteria"
+    },
+    "PG-EVIDENCE-LINK": {
+      "line": 43,
+      "text": "- An **evidence-linked PlanGraph** where each change step cites requirement evidence + code evidence + verification. [REF:PG-EVIDENCE-LINK]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 1) Constraints and target outcomes > 1.3 Day\u20110 success criteria"
+    },
+    "ESCALATE-NO-GUESS": {
+      "line": 44,
+      "text": "- A deterministic **Escalate loop**: missing grounding yields structured Escalate requests, not guessing. [REF:ESCALATE-NO-GUESS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 1) Constraints and target outcomes > 1.3 Day\u20110 success criteria"
+    },
+    "ENDSTATE-GOAL": {
+      "line": 47,
+      "text": "[REF:ENDSTATE-GOAL]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 1) Constraints and target outcomes > 1.4 End\u2011state goal (complete capability)"
+    },
+    "UI-FEATURE": {
+      "line": 49,
+      "text": "- UI feature creation (ag-Grid table flows + routing + federation) [REF:UI-FEATURE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 1) Constraints and target outcomes > 1.4 End\u2011state goal (complete capability)"
+    },
+    "API-FEATURE": {
+      "line": 50,
+      "text": "- API/contract feature creation (Swagger anchors \u2192 implementation mapping) [REF:API-FEATURE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 1) Constraints and target outcomes > 1.4 End\u2011state goal (complete capability)"
+    },
+    "DEBUG-FEATURE": {
+      "line": 51,
+      "text": "- Debugging (symptom \u2192 behavior chain \u2192 candidates) [REF:DEBUG-FEATURE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 1) Constraints and target outcomes > 1.4 End\u2011state goal (complete capability)"
+    },
+    "MIGRATION-FEATURE": {
+      "line": 52,
+      "text": "- Migration (adp\u2192sdf; plus \u201cprefer sdf over native controls when possible\u201d) [REF:MIGRATION-FEATURE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 1) Constraints and target outcomes > 1.4 End\u2011state goal (complete capability)"
+    },
+    "LEARNING-GATED": {
+      "line": 53,
+      "text": "- Continuous improvement gated by validation (policy/strategy/recipe/example promotion only after pass) [REF:LEARNING-GATED]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 1) Constraints and target outcomes > 1.4 End\u2011state goal (complete capability)"
+    },
+    "SEC-2": {
+      "line": 58,
+      "text": "[REF:SEC-2]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 2) Glossary (terms we will not misuse)"
+    },
+    "DEF-CONTEXTPACK": {
+      "line": 60,
+      "text": "- **ContextPack (file):** TaskSpec + anchors + evidence + active strategy + policies + allowed recipes + validation plan + missingness/conflicts. [REF:DEF-CONTEXTPACK]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 2) Glossary (terms we will not misuse)"
+    },
+    "DEF-PLANGRAPH": {
+      "line": 61,
+      "text": "- **PlanGraph (file):** evidence-linked steps (change/validate/escalate/side_effect) executable without \u201cfiguring things out.\u201d [REF:DEF-PLANGRAPH]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 2) Glossary (terms we will not misuse)"
+    },
+    "DEF-RETRIEVAL": {
+      "line": 62,
+      "text": "- **Retrieval heuristics:** system-side deterministic rules used to build ContextPacks (candidate lanes, scoring, closure budgets). [REF:DEF-RETRIEVAL]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 2) Glossary (terms we will not misuse)"
+    },
+    "DEF-STRATEGY": {
+      "line": 63,
+      "text": "- **Strategy:** agent operating doctrine: checkpoints, escalation triggers, validation profile, and recipe preferences (stored in graph policy plane). [REF:DEF-STRATEGY]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 2) Glossary (terms we will not misuse)"
+    },
+    "DEF-POLICY": {
+      "line": 64,
+      "text": "- **Policy:** hard/soft constraints (no adp, prefer sdf, federation proof required, etc.). [REF:DEF-POLICY]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 2) Glossary (terms we will not misuse)"
+    },
+    "DEF-RECIPE": {
+      "line": 65,
+      "text": "- **Recipe:** authorized transformation/workflow (codemod + parameters + invariants + verifiers). [REF:DEF-RECIPE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 2) Glossary (terms we will not misuse)"
+    },
+    "DEF-EXAMPLE": {
+      "line": 66,
+      "text": "- **Few-shot Example:** a mined or curated snippet/before-after payload referenced by PlanGraph for weak-model execution. [REF:DEF-EXAMPLE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 2) Glossary (terms we will not misuse)"
+    },
+    "DEF-FACT": {
+      "line": 67,
+      "text": "- **Fact plane:** derived graph data from repo snapshots (rebuildable). [REF:DEF-FACT]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 2) Glossary (terms we will not misuse)"
+    },
+    "DEF-POLICY-PLANE": {
+      "line": 68,
+      "text": "- **Policy plane:** versioned graph data (strategies/policies/recipes/aliases/mappings/examples). [REF:DEF-POLICY-PLANE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 2) Glossary (terms we will not misuse)"
+    },
+    "DEF-EPISODIC": {
+      "line": 69,
+      "text": "- **Episodic plane:** run history (packs, plan attempts, failure signatures, delta requests). [REF:DEF-EPISODIC]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 2) Glossary (terms we will not misuse)"
+    },
+    "SEC-3": {
+      "line": 74,
+      "text": "[REF:SEC-3]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 3) System decomposition (\u201cboxes\u201d) and responsibilities"
+    },
+    "BOXES": {
+      "line": 77,
+      "text": "[REF:BOXES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 3) System decomposition (\u201cboxes\u201d) and responsibilities > 3.1 Boxes"
+    },
+    "BOX-SENTRY": {
+      "line": 78,
+      "text": "- **Sentry:** identity + authorization + gating (WorkID/AgentID, scope allowlist, budgets, commit gates). [REF:BOX-SENTRY]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 3) System decomposition (\u201cboxes\u201d) and responsibilities > 3.1 Boxes"
+    },
+    "BOX-RETRIEVAL": {
+      "line": 79,
+      "text": "- **Retrieval:** connectors + lexeme translation + candidate gen + rerank + anchor selection + closure \u2192 ContextPack. [REF:BOX-RETRIEVAL]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 3) System decomposition (\u201cboxes\u201d) and responsibilities > 3.1 Boxes"
+    },
+    "BOX-GRAPH": {
+      "line": 80,
+      "text": "- **Graph:** fact/policy/episodic planes and query surface. [REF:BOX-GRAPH]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 3) System decomposition (\u201cboxes\u201d) and responsibilities > 3.1 Boxes"
+    },
+    "BOX-VALIDATOR": {
+      "line": 81,
+      "text": "- **Plan Validator:** accepts/rejects PlanGraph with explicit rejection codes. [REF:BOX-VALIDATOR]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 3) System decomposition (\u201cboxes\u201d) and responsibilities > 3.1 Boxes"
+    },
+    "BOX-VM": {
+      "line": 82,
+      "text": "- **VM/Executor:** controlled execution substrate (worktrees, codemods, patch apply, validators). [REF:BOX-VM]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 3) System decomposition (\u201cboxes\u201d) and responsibilities > 3.1 Boxes"
+    },
+    "BOX-VALIDATORS": {
+      "line": 83,
+      "text": "- **Validators:** tests/build/a11y/cypress; shadow-aware where needed; confidence grading. [REF:BOX-VALIDATORS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 3) System decomposition (\u201cboxes\u201d) and responsibilities > 3.1 Boxes"
+    },
+    "BOX-OBSERVATION": {
+      "line": 84,
+      "text": "- **Observation:** run trace, attempt history, metrics, failure signatures. [REF:BOX-OBSERVATION]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 3) System decomposition (\u201cboxes\u201d) and responsibilities > 3.1 Boxes"
+    },
+    "BOX-AUTHOR": {
+      "line": 85,
+      "text": "- **Author:** upsert validated learnings into policy plane (aliases, recipes, examples, strategy tuning). [REF:BOX-AUTHOR]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 3) System decomposition (\u201cboxes\u201d) and responsibilities > 3.1 Boxes"
+    },
+    "BOX-SIDEEFFECTS": {
+      "line": 86,
+      "text": "- **SideEffects:** Jira updates/attachments/PR creation/notifications (explicitly gated). [REF:BOX-SIDEEFFECTS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 3) System decomposition (\u201cboxes\u201d) and responsibilities > 3.1 Boxes"
+    },
+    "FLOW-DIAGRAM": {
+      "line": 89,
+      "text": "[REF:FLOW-DIAGRAM]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 3) System decomposition (\u201cboxes\u201d) and responsibilities > 3.2 Box-to-box flow diagram"
+    },
+    "SEC-4": {
+      "line": 113,
+      "text": "[REF:SEC-4]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 4) Data planes, immutability, and versioning"
+    },
+    "PLANES": {
+      "line": 116,
+      "text": "[REF:PLANES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 4) Data planes, immutability, and versioning > 4.1 Plane separation (single biggest sanity saver)"
+    },
+    "FACT-PLANE-RULE": {
+      "line": 117,
+      "text": "- **Fact plane:** derived; rebuildable from snapshot. [REF:FACT-PLANE-RULE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 4) Data planes, immutability, and versioning > 4.1 Plane separation (single biggest sanity saver)"
+    },
+    "POLICY-PLANE-RULE": {
+      "line": 118,
+      "text": "- **Policy plane:** curated; **append + supersede**, never overwrite. [REF:POLICY-PLANE-RULE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 4) Data planes, immutability, and versioning > 4.1 Plane separation (single biggest sanity saver)"
+    },
+    "EPISODIC-PLANE-RULE": {
+      "line": 119,
+      "text": "- **Episodic plane:** per WorkID; append-only attempt history and observations. [REF:EPISODIC-PLANE-RULE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 4) Data planes, immutability, and versioning > 4.1 Plane separation (single biggest sanity saver)"
+    },
+    "SNAPSHOT-PURITY": {
+      "line": 122,
+      "text": "[REF:SNAPSHOT-PURITY]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 4) Data planes, immutability, and versioning > 4.2 Snapshot purity"
+    },
+    "PACK-VERSIONING": {
+      "line": 128,
+      "text": "[REF:PACK-VERSIONING]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 4) Data planes, immutability, and versioning > 4.3 Artifact versioning (ContextPack files are physical)"
+    },
+    "SLICE-ACTIVE-ONLY": {
+      "line": 131,
+      "text": "- Agent slice access should be limited to *active* pack unless replay explicitly enabled. [REF:SLICE-ACTIVE-ONLY]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 4) Data planes, immutability, and versioning > 4.3 Artifact versioning (ContextPack files are physical)"
+    },
+    "SEC-5": {
+      "line": 136,
+      "text": "[REF:SEC-5]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state"
+    },
+    "PROOF-CHAINS": {
+      "line": 139,
+      "text": "[REF:PROOF-CHAINS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state > 5.1 Required proof chains (UI + federation)"
+    },
+    "CHAIN-AGGRID": {
+      "line": 140,
+      "text": "UI behavior chain (often required for dashboard work): [REF:CHAIN-AGGRID]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state > 5.1 Required proof chains (UI + federation)"
+    },
+    "CHAIN-FEDERATION": {
+      "line": 151,
+      "text": "Federation proof chain (required when federated): [REF:CHAIN-FEDERATION]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state > 5.1 Required proof chains (UI + federation)"
+    },
+    "FACT-NODES": {
+      "line": 161,
+      "text": "[REF:FACT-NODES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state > 5.2 Fact plane node types (day\u20110 minimum)"
+    },
+    "FACT-EDGES": {
+      "line": 171,
+      "text": "[REF:FACT-EDGES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state > 5.3 Fact plane edge types (day\u20110 minimum)"
+    },
+    "POLICY-ENTITIES": {
+      "line": 180,
+      "text": "[REF:POLICY-ENTITIES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state > 5.4 Policy plane entities (strategies, policies, recipes, examples)"
+    },
+    "POLICYRULE": {
+      "line": 181,
+      "text": "- PolicyRule (hard/soft) [REF:POLICYRULE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state > 5.4 Policy plane entities (strategies, policies, recipes, examples)"
+    },
+    "STRATEGY-NODE": {
+      "line": 182,
+      "text": "- Strategy (agent doctrine) [REF:STRATEGY-NODE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state > 5.4 Policy plane entities (strategies, policies, recipes, examples)"
+    },
+    "VALIDATIONPROFILE": {
+      "line": 183,
+      "text": "- ValidationProfile (required checks + confidence rules) [REF:VALIDATIONPROFILE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state > 5.4 Policy plane entities (strategies, policies, recipes, examples)"
+    },
+    "ESCALATIONTRIGGER": {
+      "line": 184,
+      "text": "- EscalationTrigger [REF:ESCALATIONTRIGGER]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state > 5.4 Policy plane entities (strategies, policies, recipes, examples)"
+    },
+    "RECIPE-NODE": {
+      "line": 185,
+      "text": "- Recipe (codemod/workflow) [REF:RECIPE-NODE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state > 5.4 Policy plane entities (strategies, policies, recipes, examples)"
+    },
+    "LEXEMEALIAS": {
+      "line": 186,
+      "text": "- LexemeAlias + Domain [REF:LEXEMEALIAS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state > 5.4 Policy plane entities (strategies, policies, recipes, examples)"
+    },
+    "MIGRATIONMAP": {
+      "line": 187,
+      "text": "- MigrationMap (adp\u2192sdf; coverage) [REF:MIGRATIONMAP]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state > 5.4 Policy plane entities (strategies, policies, recipes, examples)"
+    },
+    "EXAMPLEREF": {
+      "line": 188,
+      "text": "- ExampleRef (preferred/anti/deprecated; last verified snapshot) [REF:EXAMPLEREF]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state > 5.4 Policy plane entities (strategies, policies, recipes, examples)"
+    },
+    "SDFCONTRACTINDEX": {
+      "line": 189,
+      "text": "- SdfContractIndex (derived from `.d.ts`; versioned) [REF:SDFCONTRACTINDEX]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state > 5.4 Policy plane entities (strategies, policies, recipes, examples)"
+    },
+    "RETRIEVALCONFIG": {
+      "line": 190,
+      "text": "- RetrievalConfig + RetrievalMacro (system retrieval knobs) [REF:RETRIEVALCONFIG]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 5) Graph schema: minimum for day\u20110, extensible for end-state > 5.4 Policy plane entities (strategies, policies, recipes, examples)"
+    },
+    "SEC-6": {
+      "line": 195,
+      "text": "[REF:SEC-6]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 6) Retrieval: lexical-first without embeddings (algorithmic contract)"
+    },
+    "LEXEME-MODEL": {
+      "line": 198,
+      "text": "[REF:LEXEME-MODEL]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 6) Retrieval: lexical-first without embeddings (algorithmic contract) > 6.1 Lexeme model (typed lexical seeds)"
+    },
+    "LEXEME-KINDS": {
+      "line": 200,
+      "text": "Kinds to support at minimum: ENDPOINT_PATH, ROUTE_SEGMENT, SYMBOL, SELECTOR_TAG, GRID_FIELD, UI_LABEL, CONFIG_FLAG, ERROR_STRING, DOMAIN_NOUN. [REF:LEXEME-KINDS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 6) Retrieval: lexical-first without embeddings (algorithmic contract) > 6.1 Lexeme model (typed lexical seeds)"
+    },
+    "NORMALIZATION": {
+      "line": 203,
+      "text": "[REF:NORMALIZATION]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 6) Retrieval: lexical-first without embeddings (algorithmic contract) > 6.2 Normalization (replaces embedding fuzz)"
+    },
+    "TAILWIND-DOWNWEIGHT": {
+      "line": 207,
+      "text": "- downweight Tailwind utility tokens (near-zero by default) [REF:TAILWIND-DOWNWEIGHT]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 6) Retrieval: lexical-first without embeddings (algorithmic contract) > 6.2 Normalization (replaces embedding fuzz)"
+    },
+    "CANDIDATE-LANES": {
+      "line": 210,
+      "text": "[REF:CANDIDATE-LANES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 6) Retrieval: lexical-first without embeddings (algorithmic contract) > 6.3 Candidate generation must be multi-lane"
+    },
+    "RERANKING": {
+      "line": 218,
+      "text": "[REF:RERANKING]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 6) Retrieval: lexical-first without embeddings (algorithmic contract) > 6.4 Reranking (deterministic \u201cscore + reasons\u201d)"
+    },
+    "RERANK-REASONS": {
+      "line": 222,
+      "text": "Reranking must be deterministic and explainable; store \u201creasons\u201d for selected anchors in the ContextPack. [REF:RERANK-REASONS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 6) Retrieval: lexical-first without embeddings (algorithmic contract) > 6.4 Reranking (deterministic \u201cscore + reasons\u201d)"
+    },
+    "ANCHOR-INVARIANTS": {
+      "line": 225,
+      "text": "[REF:ANCHOR-INVARIANTS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 6) Retrieval: lexical-first without embeddings (algorithmic contract) > 6.5 Anchor selection invariants"
+    },
+    "ORIGIN-UNKNOWN-RULE": {
+      "line": 231,
+      "text": "- origin chain (or explicit \u201corigin unknown\u201d) for UI flows. [REF:ORIGIN-UNKNOWN-RULE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 6) Retrieval: lexical-first without embeddings (algorithmic contract) > 6.5 Anchor selection invariants"
+    },
+    "CLOSURE": {
+      "line": 234,
+      "text": "[REF:CLOSURE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 6) Retrieval: lexical-first without embeddings (algorithmic contract) > 6.6 Closure expansion (bounded by edge type)"
+    },
+    "TEST-CONFIDENCE": {
+      "line": 239,
+      "text": "Include config flags encountered. Include tests with confidence grading. [REF:TEST-CONFIDENCE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 6) Retrieval: lexical-first without embeddings (algorithmic contract) > 6.6 Closure expansion (bounded by edge type)"
+    },
+    "FILTER-NO-CODE": {
+      "line": 242,
+      "text": "[REF:FILTER-NO-CODE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 6) Retrieval: lexical-first without embeddings (algorithmic contract) > 6.7 Search filters must be declarative (no code)"
+    },
+    "FILTER-FORBIDDEN": {
+      "line": 243,
+      "text": "Search `{range,file,filter}` is allowed only if `filter` is a declarative DSL or macro reference. Agent-supplied executable code in filters is forbidden. [REF:FILTER-FORBIDDEN]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 6) Retrieval: lexical-first without embeddings (algorithmic contract) > 6.7 Search filters must be declarative (no code)"
+    },
+    "SEC-7": {
+      "line": 248,
+      "text": "[REF:SEC-7]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 7) ContextPack contract (what the planner agent receives)"
+    },
+    "CP-SECTIONS": {
+      "line": 251,
+      "text": "[REF:CP-SECTIONS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 7) ContextPack contract (what the planner agent receives) > 7.1 Required ContextPack sections"
+    },
+    "TASKSPEC": {
+      "line": 253,
+      "text": "2) TaskSpec (quoted constraints + normalized AC + conflicts) [REF:TASKSPEC]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 7) ContextPack contract (what the planner agent receives) > 7.1 Required ContextPack sections"
+    },
+    "CP-STRATEGY": {
+      "line": 254,
+      "text": "3) Active Strategy (strategyId + ContextSignature reasons) [REF:CP-STRATEGY]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 7) ContextPack contract (what the planner agent receives) > 7.1 Required ContextPack sections"
+    },
+    "CP-POLICIES": {
+      "line": 255,
+      "text": "4) Active Policies (hard/soft) [REF:CP-POLICIES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 7) ContextPack contract (what the planner agent receives) > 7.1 Required ContextPack sections"
+    },
+    "CP-RECIPES": {
+      "line": 256,
+      "text": "5) Allowed Recipes + Examples (preferred sdf; anti adp) [REF:CP-RECIPES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 7) ContextPack contract (what the planner agent receives) > 7.1 Required ContextPack sections"
+    },
+    "CP-ANCHORS": {
+      "line": 257,
+      "text": "6) Anchors (entrypoint + definition + proof chains) [REF:CP-ANCHORS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 7) ContextPack contract (what the planner agent receives) > 7.1 Required ContextPack sections"
+    },
+    "CP-EVIDENCE": {
+      "line": 258,
+      "text": "7) Evidence (snippets + refs + reasons) [REF:CP-EVIDENCE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 7) ContextPack contract (what the planner agent receives) > 7.1 Required ContextPack sections"
+    },
+    "CP-VALIDATION": {
+      "line": 259,
+      "text": "8) Validation plan (hooks + confidence + fallback chain) [REF:CP-VALIDATION]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 7) ContextPack contract (what the planner agent receives) > 7.1 Required ContextPack sections"
+    },
+    "CP-MISSINGNESS": {
+      "line": 260,
+      "text": "9) Missingness/Conflicts (explicit gaps + recommended deltas) [REF:CP-MISSINGNESS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 7) ContextPack contract (what the planner agent receives) > 7.1 Required ContextPack sections"
+    },
+    "CP-GATES": {
+      "line": 263,
+      "text": "[REF:CP-GATES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 7) ContextPack contract (what the planner agent receives) > 7.2 Pack-ready gates (machine checkable)"
+    },
+    "SEC-8": {
+      "line": 274,
+      "text": "[REF:SEC-8]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 8) Strategies (agent doctrines) as graph-native objects"
+    },
+    "STRATEGY-DEF": {
+      "line": 277,
+      "text": "[REF:STRATEGY-DEF]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 8) Strategies (agent doctrines) as graph-native objects > 8.1 Strategy definition"
+    },
+    "STRATEGY-SELECTION": {
+      "line": 278,
+      "text": "A Strategy is a doctrine: checkpoints, escalation triggers, preferred recipes, and a validation profile. Strategy selection must be deterministic from ContextSignature features. [REF:STRATEGY-SELECTION]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 8) Strategies (agent doctrines) as graph-native objects > 8.1 Strategy definition"
+    },
+    "CONTEXTSIGNATURE": {
+      "line": 281,
+      "text": "[REF:CONTEXTSIGNATURE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 8) Strategies (agent doctrines) as graph-native objects > 8.2 ContextSignature (no embeddings)"
+    },
+    "CONTEXTSIGNATURE-FEATURES": {
+      "line": 282,
+      "text": "Compute simple boolean/ordinal features: has_swagger, mentions_aggrid, behind_federation_boundary, touches_shadow_dom, migration_adp_present, sdf_contract_available, test_confidence_level, task_type_guess. [REF:CONTEXTSIGNATURE-FEATURES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 8) Strategies (agent doctrines) as graph-native objects > 8.2 ContextSignature (no embeddings)"
+    },
+    "STRATEGY-COMPLIANCE": {
+      "line": 285,
+      "text": "[REF:STRATEGY-COMPLIANCE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 8) Strategies (agent doctrines) as graph-native objects > 8.3 Strategy compliance"
+    },
+    "STRATEGY-SWITCH-TRIGGERS": {
+      "line": 286,
+      "text": "PlanGraph must conform to selected strategy. Deviations require `strategyDeviationReason` + evidence. Strategy switches after failures must be triggered by explicit hard triggers (policy plane). [REF:STRATEGY-SWITCH-TRIGGERS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 8) Strategies (agent doctrines) as graph-native objects > 8.3 Strategy compliance"
+    },
+    "SEC-9": {
+      "line": 291,
+      "text": "[REF:SEC-9]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods"
+    },
+    "POLICIES": {
+      "line": 294,
+      "text": "[REF:POLICIES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.1 Policies (hard vs soft)"
+    },
+    "POLICY-NO-ADP": {
+      "line": 295,
+      "text": "- Hard: do not introduce `adp-*` [REF:POLICY-NO-ADP]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.1 Policies (hard vs soft)"
+    },
+    "POLICY-PREFER-SDF": {
+      "line": 296,
+      "text": "- Soft: prefer `sdf-*` over native controls when possible [REF:POLICY-PREFER-SDF]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.1 Policies (hard vs soft)"
+    },
+    "POLICY-FED-PROOF": {
+      "line": 297,
+      "text": "- Federation proof required for execution-ready packs [REF:POLICY-FED-PROOF]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.1 Policies (hard vs soft)"
+    },
+    "POLICY-SHADOW": {
+      "line": 298,
+      "text": "- Shadow DOM testing confidence rules [REF:POLICY-SHADOW]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.1 Policies (hard vs soft)"
+    },
+    "CODEMODS": {
+      "line": 301,
+      "text": "[REF:CODEMODS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.2 Codemods: manifest + graph recipe nodes"
+    },
+    "CODEMOD-MANIFEST": {
+      "line": 302,
+      "text": "- Keep a **manifest** as runtime source of truth (what exists, args schema, outputs). [REF:CODEMOD-MANIFEST]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.2 Codemods: manifest + graph recipe nodes"
+    },
+    "CODEMOD-RECIPES": {
+      "line": 303,
+      "text": "- Represent high-impact codemods as **Recipe nodes** in the policy plane for selection/gating/observability. [REF:CODEMOD-RECIPES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.2 Codemods: manifest + graph recipe nodes"
+    },
+    "CODEMOD-PARAMS": {
+      "line": 304,
+      "text": "- Codemod invocation must be `recipeId + validated params` (no arbitrary CLI). [REF:CODEMOD-PARAMS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.2 Codemods: manifest + graph recipe nodes"
+    },
+    "CODEMOD-OBS": {
+      "line": 305,
+      "text": "- Record codemod usage episodically: recipeId, params, diffs, validator results, failure signatures. [REF:CODEMOD-OBS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.2 Codemods: manifest + graph recipe nodes"
+    },
+    "EXAMPLES": {
+      "line": 308,
+      "text": "[REF:EXAMPLES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.3 Few-shot examples without embeddings"
+    },
+    "EX-A": {
+      "line": 309,
+      "text": "- Scenario A: mine existing `sdf-*` usage patterns. [REF:EX-A]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.3 Few-shot examples without embeddings"
+    },
+    "EX-B": {
+      "line": 310,
+      "text": "- Scenario B: mine migration diffs and mappings.json outputs. [REF:EX-B]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.3 Few-shot examples without embeddings"
+    },
+    "EX-C": {
+      "line": 311,
+      "text": "- Scenario C (generate+validate new examples) is not day-0; later phase. [REF:EX-C]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.3 Few-shot examples without embeddings"
+    },
+    "ADP-ANTI": {
+      "line": 312,
+      "text": "- adp examples are **anti-examples/removal targets** by default, not recommended guidance. [REF:ADP-ANTI]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.3 Few-shot examples without embeddings"
+    },
+    "SDF-CONTRACT": {
+      "line": 315,
+      "text": "[REF:SDF-CONTRACT]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.4 SDF non-standard contracts"
+    },
+    "SDF-INDEX-RULE": {
+      "line": 316,
+      "text": "Derive and persist a shared `SdfContractIndex` from `.d.ts` so planning/execution can validate legal props/events without model priors. [REF:SDF-INDEX-RULE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.4 SDF non-standard contracts"
+    },
+    "FORMBUILDER": {
+      "line": 319,
+      "text": "[REF:FORMBUILDER]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.5 FormBuilder normalization permissions"
+    },
+    "FORMBUILDER-RECIPE": {
+      "line": 320,
+      "text": "If FormBuilder decompression/normalization is allowed, encode it as a Recipe with explicit invariants (validators/updateOn/disabled semantics) and require PlanGraph steps to cite it when applied. [REF:FORMBUILDER-RECIPE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 9) Policies, recipes, examples, and codemods > 9.5 FormBuilder normalization permissions"
+    },
+    "SEC-10": {
+      "line": 325,
+      "text": "[REF:SEC-10]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract)"
+    },
+    "PG-ENVELOPE": {
+      "line": 328,
+      "text": "[REF:PG-ENVELOPE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.1 Envelope required (day\u20110 trimmed)"
+    },
+    "PG-ENVELOPE-OPTIONAL": {
+      "line": 337,
+      "text": "`retrievalConfigId` may be optional until replay is implemented (ContextPack carries retrieval trace digest). [REF:PG-ENVELOPE-OPTIONAL]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.1 Envelope required (day\u20110 trimmed)"
+    },
+    "PG-KIND-SPECIFIC": {
+      "line": 340,
+      "text": "[REF:PG-KIND-SPECIFIC]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.2 Per-node required fields by kind"
+    },
+    "PG-COMMON": {
+      "line": 341,
+      "text": "Common (all nodes): nodeId, kind, dependsOn[], atomicityBoundary, expectedFailureSignatures[], correctionCandidateOnFail. [REF:PG-COMMON]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.2 Per-node required fields by kind"
+    },
+    "PG-CHANGE-REQ": {
+      "line": 343,
+      "text": "Change nodes require: operation, targetFile, targetSymbols[], whyThisFile, citations[], codeEvidence[], policyRefs[], verificationHooks[], escalateIf[], plus editIntent sufficient for weak executor. [REF:PG-CHANGE-REQ]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.2 Per-node required fields by kind"
+    },
+    "PG-VALIDATE-REQ": {
+      "line": 345,
+      "text": "Validate nodes require: verificationHooks[], mapsToNodeIds[], successCriteria. [REF:PG-VALIDATE-REQ]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.2 Per-node required fields by kind"
+    },
+    "PG-ESCALATE-REQ": {
+      "line": 347,
+      "text": "Escalate nodes require: requestedEvidence[], blockingReasons[], proposedNextStrategyId (optional). [REF:PG-ESCALATE-REQ]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.2 Per-node required fields by kind"
+    },
+    "PG-SIDEEFFECT-REQ": {
+      "line": 349,
+      "text": "Side-effect nodes require: sideEffectType, sideEffectPayloadRef, commitGateId; should depend on validate nodes unless policy allows earlier updates. [REF:PG-SIDEEFFECT-REQ]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.2 Per-node required fields by kind"
+    },
+    "PG-SCOPE": {
+      "line": 352,
+      "text": "[REF:PG-SCOPE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.3 Scope and safety rules"
+    },
+    "PG-SCOPE-REJECT": {
+      "line": 357,
+      "text": "Reject on first violation. [REF:PG-SCOPE-REJECT]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.3 Scope and safety rules"
+    },
+    "PG-EVIDENCE": {
+      "line": 360,
+      "text": "[REF:PG-EVIDENCE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.4 Evidence rules (category minima; non-gameable)"
+    },
+    "PG-EVIDENCE-CATS": {
+      "line": 361,
+      "text": "- Use category-based minima: minRequirementSources, minCodeEvidenceSources, optional minPolicySources. [REF:PG-EVIDENCE-CATS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.4 Evidence rules (category minima; non-gameable)"
+    },
+    "PG-DISTINCT": {
+      "line": 362,
+      "text": "- Distinct-source definition must prevent gaming (\u201ctwo refs to same file\u201d \u2260 two sources). [REF:PG-DISTINCT]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.4 Evidence rules (category minima; non-gameable)"
+    },
+    "PG-CAT-COVERAGE": {
+      "line": 363,
+      "text": "- For feature work: require at least one requirement citation AND one codeEvidence anchor. [REF:PG-CAT-COVERAGE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.4 Evidence rules (category minima; non-gameable)"
+    },
+    "PG-LOW-EVIDENCE": {
+      "line": 365,
+      "text": "Single-source allowance (only when allowSingleSourceWithGuard=true): [REF:PG-LOW-EVIDENCE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.4 Evidence rules (category minima; non-gameable)"
+    },
+    "PG-FEWSHOT-CONDITIONAL": {
+      "line": 369,
+      "text": "- additional fewShotRefs OR recipeRefs required when strategy/policy demands it [REF:PG-FEWSHOT-CONDITIONAL]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.4 Evidence rules (category minima; non-gameable)"
+    },
+    "PG-ATOMICITY": {
+      "line": 372,
+      "text": "[REF:PG-ATOMICITY]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.5 Atomicity rules"
+    },
+    "PG-NO-MIX": {
+      "line": 376,
+      "text": "- no mixed refactor+feature+migration unless explicitly justified and policy-approved. [REF:PG-NO-MIX]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.5 Atomicity rules"
+    },
+    "PG-VERIFY": {
+      "line": 379,
+      "text": "[REF:PG-VERIFY]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.6 Verification rules"
+    },
+    "PG-VERIFY-NOTGENERIC": {
+      "line": 382,
+      "text": "- hooks must map to acceptance criteria (not \u201crun tests\u201d) [REF:PG-VERIFY-NOTGENERIC]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.6 Verification rules"
+    },
+    "PG-SHADOW-VERIFY": {
+      "line": 383,
+      "text": "Shadow DOM nuance: if node touches sdf/shadow behavior, require shadow-aware hook or mark validation confidence low + require human review/test-gen. [REF:PG-SHADOW-VERIFY]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.6 Verification rules"
+    },
+    "PG-STRATEGY": {
+      "line": 386,
+      "text": "[REF:PG-STRATEGY]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.7 Strategy compliance and switching"
+    },
+    "PG-STRATEGY-SWITCH": {
+      "line": 389,
+      "text": "- strategy switch allowed only via hard triggers after failure signatures [REF:PG-STRATEGY-SWITCH]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.7 Strategy compliance and switching"
+    },
+    "PG-WEAKMODEL": {
+      "line": 392,
+      "text": "[REF:PG-WEAKMODEL]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.8 Weak-model execution handoff contract"
+    },
+    "PG-NO-JUDGMENT": {
+      "line": 395,
+      "text": "- escalation conditions must be explicit (no implied judgment calls) [REF:PG-NO-JUDGMENT]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.8 Weak-model execution handoff contract"
+    },
+    "PG-OBS": {
+      "line": 398,
+      "text": "[REF:PG-OBS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.9 Observability requirements"
+    },
+    "PG-OBS-PERNODE": {
+      "line": 400,
+      "text": "Per node: expectedFailureSignatures[] required. [REF:PG-OBS-PERNODE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.9 Observability requirements"
+    },
+    "PG-REJECT-CODES": {
+      "line": 403,
+      "text": "[REF:PG-REJECT-CODES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.10 Global rejection codes (minimum set + domain-specific)"
+    },
+    "RC-FED": {
+      "line": 412,
+      "text": "- PLAN_FEDERATION_PROOF_MISSING [REF:RC-FED]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.10 Global rejection codes (minimum set + domain-specific)"
+    },
+    "RC-ORIGIN": {
+      "line": 413,
+      "text": "- PLAN_ORIGIN_UNKNOWN [REF:RC-ORIGIN]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.10 Global rejection codes (minimum set + domain-specific)"
+    },
+    "RC-POLICY": {
+      "line": 414,
+      "text": "- PLAN_POLICY_VIOLATION [REF:RC-POLICY]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.10 Global rejection codes (minimum set + domain-specific)"
+    },
+    "RC-CONTRACT": {
+      "line": 415,
+      "text": "- PLAN_MISSING_CONTRACT_ANCHOR [REF:RC-CONTRACT]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.10 Global rejection codes (minimum set + domain-specific)"
+    },
+    "RC-VALCONF": {
+      "line": 416,
+      "text": "- PLAN_VALIDATION_CONFIDENCE_TOO_LOW [REF:RC-VALCONF]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 10) PlanGraph acceptance checklist (validator contract) > 10.10 Global rejection codes (minimum set + domain-specific)"
+    },
+    "SEC-11": {
+      "line": 421,
+      "text": "[REF:SEC-11]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 11) Observability + memory + manual background agent"
+    },
+    "OBS-RECORD": {
+      "line": 424,
+      "text": "[REF:OBS-RECORD]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 11) Observability + memory + manual background agent > 11.1 What to record (episodic plane)"
+    },
+    "FAILSIGS": {
+      "line": 428,
+      "text": "- Failure signatures (normalized) like FEDERATION_PROOF_MISSING, ORIGIN_UNKNOWN, DEFINITION_MISSING, SHADOW_TEST_WEAK, ADP_POLICY_VIOLATION. [REF:FAILSIGS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 11) Observability + memory + manual background agent > 11.1 What to record (episodic plane)"
+    },
+    "BG-AGENT": {
+      "line": 431,
+      "text": "[REF:BG-AGENT]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 11) Observability + memory + manual background agent > 11.2 Manual background agent (triggered by human)"
+    },
+    "DELTA-REQUEST": {
+      "line": 435,
+      "text": "- delta_request.json (precise changes for next pack/strategy) [REF:DELTA-REQUEST]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 11) Observability + memory + manual background agent > 11.2 Manual background agent (triggered by human)"
+    },
+    "NO-CHURN": {
+      "line": 437,
+      "text": "Rule: no regenerate-for-free. New plan attempts must correspond to new pack/deltas/strategy switch. [REF:NO-CHURN]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 11) Observability + memory + manual background agent > 11.2 Manual background agent (triggered by human)"
+    },
+    "PROMOTION": {
+      "line": 440,
+      "text": "[REF:PROMOTION]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 11) Observability + memory + manual background agent > 11.3 Promotion to policy plane (Author)"
+    },
+    "PROMOTION-GATED": {
+      "line": 441,
+      "text": "Only promote after validation passes (or explicit human approval): aliases, mappings, recipes, examples, strategy tuning. [REF:PROMOTION-GATED]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 11) Observability + memory + manual background agent > 11.3 Promotion to policy plane (Author)"
+    },
+    "SEC-12": {
+      "line": 446,
+      "text": "[REF:SEC-12]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 12) Roadmap: day\u20110 \u2192 end-state phases"
+    },
+    "ROADMAP-DAY0": {
+      "line": 449,
+      "text": "[REF:ROADMAP-DAY0]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 12) Roadmap: day\u20110 \u2192 end-state phases > 12.1 Day\u20110 build order (dependency order)"
+    },
+    "ROADMAP-PHASES": {
+      "line": 460,
+      "text": "[REF:ROADMAP-PHASES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 12) Roadmap: day\u20110 \u2192 end-state phases > 12.2 Phase 1\u20134 summary"
+    },
+    "SEC-13": {
+      "line": 469,
+      "text": "[REF:SEC-13]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation)"
+    },
+    "GOT-IDENTITY": {
+      "line": 472,
+      "text": "[REF:GOT-IDENTITY]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.1 Snapshot/identity gotchas"
+    },
+    "GOT-SNAP": {
+      "line": 473,
+      "text": "- snapshot mixing \u2192 hard fail pack [REF:GOT-SNAP]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.1 Snapshot/identity gotchas"
+    },
+    "GOT-DUP": {
+      "line": 474,
+      "text": "- duplicate symbol identities \u2192 stable join keys + unify [REF:GOT-DUP]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.1 Snapshot/identity gotchas"
+    },
+    "GOT-GEN": {
+      "line": 475,
+      "text": "- generated artifacts poisoning \u2192 exclude by default [REF:GOT-GEN]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.1 Snapshot/identity gotchas"
+    },
+    "GOT-ROUTES": {
+      "line": 478,
+      "text": "[REF:GOT-ROUTES]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.2 Angular routing/nav gotchas"
+    },
+    "GOT-URL": {
+      "line": 479,
+      "text": "- string-built URLs \u2192 unresolved routeRefs \u2192 escalate [REF:GOT-URL]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.2 Angular routing/nav gotchas"
+    },
+    "GOT-GUARD": {
+      "line": 480,
+      "text": "- guards/resolvers affect behavior \u2192 include in closure when present [REF:GOT-GUARD]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.2 Angular routing/nav gotchas"
+    },
+    "GOT-AGGRID": {
+      "line": 483,
+      "text": "[REF:GOT-AGGRID]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.3 ag-Grid gotchas"
+    },
+    "GOT-COLDEF": {
+      "line": 484,
+      "text": "- columnDef factories/builders \u2192 index symbol refs [REF:GOT-COLDEF]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.3 ag-Grid gotchas"
+    },
+    "GOT-RENDER": {
+      "line": 485,
+      "text": "- renderer registry indirection \u2192 resolver or explicit uncertainty [REF:GOT-RENDER]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.3 ag-Grid gotchas"
+    },
+    "GOT-ORIGIN": {
+      "line": 486,
+      "text": "- origin missing \u2192 mark ORIGIN_UNKNOWN; bias escalate [REF:GOT-ORIGIN]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.3 ag-Grid gotchas"
+    },
+    "GOT-FED": {
+      "line": 489,
+      "text": "[REF:GOT-FED]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.4 Federation gotchas (highest severity)"
+    },
+    "GOT-FED-MISS": {
+      "line": 490,
+      "text": "- host\u2192remote proof missing \u2192 pack insufficient [REF:GOT-FED-MISS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.4 Federation gotchas (highest severity)"
+    },
+    "GOT-FED-AMB": {
+      "line": 491,
+      "text": "- multiple remotes plausible \u2192 ambiguity must be explicit [REF:GOT-FED-AMB]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.4 Federation gotchas (highest severity)"
+    },
+    "GOT-SHADOW": {
+      "line": 494,
+      "text": "[REF:GOT-SHADOW]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.5 Shadow DOM / sdf gotchas"
+    },
+    "GOT-SHADOW-TEST": {
+      "line": 495,
+      "text": "- tests don\u2019t pierce shadowRoot \u2192 false confidence \u2192 downgrade [REF:GOT-SHADOW-TEST]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.5 Shadow DOM / sdf gotchas"
+    },
+    "GOT-CONTRACT": {
+      "line": 496,
+      "text": "- contract drift \u2192 stale examples \u2192 downweight; refresh [REF:GOT-CONTRACT]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.5 Shadow DOM / sdf gotchas"
+    },
+    "GOT-MIGRATION": {
+      "line": 499,
+      "text": "[REF:GOT-MIGRATION]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.6 Migration gotchas"
+    },
+    "GOT-MAP": {
+      "line": 500,
+      "text": "- mappings incomplete \u2192 codemod unhandled patterns must surface [REF:GOT-MAP]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.6 Migration gotchas"
+    },
+    "GOT-EXCEPTION": {
+      "line": 501,
+      "text": "- scoped exceptions needed \u2192 encode explicitly in policy [REF:GOT-EXCEPTION]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.6 Migration gotchas"
+    },
+    "GOT-LEXICAL": {
+      "line": 504,
+      "text": "[REF:GOT-LEXICAL]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.7 Lexical-only gotchas"
+    },
+    "GOT-ALIAS": {
+      "line": 505,
+      "text": "- vocabulary mismatch \u2192 alias expansion + negative lexemes [REF:GOT-ALIAS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.7 Lexical-only gotchas"
+    },
+    "GOT-HUB": {
+      "line": 506,
+      "text": "- hub bias \u2192 penalties + corroboration [REF:GOT-HUB]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.7 Lexical-only gotchas"
+    },
+    "GOT-TW": {
+      "line": 507,
+      "text": "- Tailwind noise \u2192 downweight [REF:GOT-TW]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.7 Lexical-only gotchas"
+    },
+    "GOT-PLAN": {
+      "line": 510,
+      "text": "[REF:GOT-PLAN]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.8 Planning/validation gotchas"
+    },
+    "GOT-PLAUSIBLE": {
+      "line": 511,
+      "text": "- plausible but wrong plan \u2192 require requirement+code evidence [REF:GOT-PLAUSIBLE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.8 Planning/validation gotchas"
+    },
+    "GOT-CHURN": {
+      "line": 512,
+      "text": "- regeneration churn \u2192 require deltas/strategy switch [REF:GOT-CHURN]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.8 Planning/validation gotchas"
+    },
+    "GOT-FLAKE": {
+      "line": 513,
+      "text": "- flaky tests \u2192 avoid promoting unstable patterns [REF:GOT-FLAKE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 13) Comprehensive gotchas (with detection + mitigation) > 13.8 Planning/validation gotchas"
+    },
+    "SEC-14": {
+      "line": 518,
+      "text": "[REF:SEC-14]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 14) Evaluation harness (how you know retrieval is good)"
+    },
+    "EVAL-TASKS": {
+      "line": 521,
+      "text": "[REF:EVAL-TASKS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 14) Evaluation harness (how you know retrieval is good) > 14.1 Golden tasks"
+    },
+    "EVAL-METRICS": {
+      "line": 528,
+      "text": "[REF:EVAL-METRICS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 14) Evaluation harness (how you know retrieval is good) > 14.2 Metrics"
+    },
+    "SEC-15": {
+      "line": 541,
+      "text": "[REF:SEC-15]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 15) Appendix: Declarative search filter design (no code)"
+    },
+    "APP-FILTER": {
+      "line": 543,
+      "text": "- `filter` must be declarative: JSON predicate DSL or macro reference. [REF:APP-FILTER]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 15) Appendix: Declarative search filter design (no code)"
+    },
+    "APP-FILTER-NO-CODE": {
+      "line": 544,
+      "text": "- executable code in filters is forbidden. [REF:APP-FILTER-NO-CODE]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 15) Appendix: Declarative search filter design (no code)"
+    },
+    "APP-MACROS": {
+      "line": 545,
+      "text": "- macros are versioned policy-plane objects and must be cited in ContextPack reasons. [REF:APP-MACROS]",
+      "heading_path": "Graph-Backed Agentic Gateway Reference Manual (ADP / MCP / No External LLMs) > 15) Appendix: Declarative search filter design (no code)"
+    }
+  }
+}

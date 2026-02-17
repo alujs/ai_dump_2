@@ -6,7 +6,7 @@ export interface ArtifactBundleInput {
   workId: string;
   runSessionId: string;
   nodeId: string;
-  operation: "patch_apply" | "code_run" | "side_effect";
+  operation: "apply_code_patch" | "run_sandboxed_code" | "execute_gated_side_effect";
   result: Record<string, unknown>;
   opLog: string;
   traceRefs: string[];
