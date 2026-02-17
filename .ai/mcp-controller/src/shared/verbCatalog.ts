@@ -118,6 +118,12 @@ const CATALOG: Record<string, VerbDescriptor> = {
     requiredArgs: ["recipeName"],
     optionalArgs: ["recipeArgs"],
   },
+  signal_task_complete: {
+    description: "Signal that all implementation tasks are complete and trigger a session retrospective. Returns a friction digest, pending memory candidates, and suggestions for the user.",
+    whenToUse: "When all planned implementation work is done and you want to generate a retrospective summary for the user.",
+    requiredArgs: [],
+    optionalArgs: ["summary", "lessonsLearned"],
+  },
 };
 
 /**

@@ -48,18 +48,48 @@ export const AST_CODEMOD_CATALOG: AstCodemodDescriptor[] = [
   }
 ];
 
+/* ── Runtime registry for custom codemods ─────────────────── */
+
+const customCodemods = new Map<string, AstCodemodDescriptor>();
+
+/**
+ * Register a custom codemod at runtime.
+ * Custom codemods go through the same sandbox verification as built-in ones
+ * but are not hardcoded — they can be added by memory records, seed data,
+ * or future agent-authored transforms.
+ */
+export function registerCustomCodemod(descriptor: AstCodemodDescriptor): void {
+  customCodemods.set(descriptor.id, descriptor);
+}
+
 export function isSupportedAstCodemodId(value: string): value is AstCodemodId {
-  return AST_CODEMOD_CATALOG.some((item) => item.id === value);
+  return AST_CODEMOD_CATALOG.some((item) => item.id === value) || customCodemods.has(value);
 }
 
 export function codemodCitationToken(codemodId: string): string {
-  const found = AST_CODEMOD_CATALOG.find((item) => item.id === codemodId);
+  const found = AST_CODEMOD_CATALOG.find((item) => item.id === codemodId)
+    ?? customCodemods.get(codemodId);
   if (!found) {
     return `codemod:${codemodId}`;
   }
   return found.citationToken;
 }
 
+export function resolveCodemodDescriptor(codemodId: string): AstCodemodDescriptor | undefined {
+  return AST_CODEMOD_CATALOG.find((item) => item.id === codemodId)
+    ?? customCodemods.get(codemodId);
+}
+
 export function listAstCodemods(): AstCodemodDescriptor[] {
-  return AST_CODEMOD_CATALOG.map((item) => ({ ...item, targetFileKinds: [...item.targetFileKinds], requiredParams: [...item.requiredParams] }));
+  const builtIn = AST_CODEMOD_CATALOG.map((item) => ({ ...item, targetFileKinds: [...item.targetFileKinds], requiredParams: [...item.requiredParams] }));
+  const custom = [...customCodemods.values()].map((item) => ({ ...item, targetFileKinds: [...item.targetFileKinds], requiredParams: [...item.requiredParams] }));
+  return [...builtIn, ...custom];
+}
+
+export function listCustomCodemods(): AstCodemodDescriptor[] {
+  return [...customCodemods.values()];
+}
+
+export function clearCustomCodemods(): void {
+  customCodemods.clear();
 }

@@ -1,0 +1,1 @@
+When all implementation tasks are complete, call `signal_task_complete` with an optional `summary` to generate a session retrospective. This triggers friction analysis, memory candidate scaffolding, and a report of pending memories that need human review.

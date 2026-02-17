@@ -1,0 +1,1916 @@
+[
+  {
+    "id": "mem_113b312a-49f8-47d7-8748-87583c7d355d",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:03.072Z",
+    "updatedAt": "2026-02-17T16:26:03.072Z",
+    "traceRef": "trace_9ed0cea3-3b7f-493a-93a8-b2bf976fcd02",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_43322544-e8ac-44df-9e74-cdadb74039d6",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (4x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:03.157Z",
+    "updatedAt": "2026-02-17T16:26:03.157Z",
+    "traceRef": "trace_d0449c19-224b-47f1-a436-ad4952abadf7",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 4
+    }
+  },
+  {
+    "id": "mem_f2a9980b-cf20-4cb8-983f-bbfadbe5264a",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (5x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:03.239Z",
+    "updatedAt": "2026-02-17T16:26:03.239Z",
+    "traceRef": "trace_b182a380-88d1-439b-9edf-de3727fb9979",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 5
+    }
+  },
+  {
+    "id": "mem_76071765-5d3b-4f23-a6cd-1cd63667c861",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (6x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:03.291Z",
+    "updatedAt": "2026-02-17T16:26:03.291Z",
+    "traceRef": "trace_4f9bd6ce-435b-4721-9a1a-a81e8095196e",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 6
+    }
+  },
+  {
+    "id": "mem_d1868eff-885e-4a21-925b-223173d8eba2",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (7x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:03.389Z",
+    "updatedAt": "2026-02-17T16:26:03.389Z",
+    "traceRef": "trace_596dfec5-94d5-49ff-a162-57f78a1966d2",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 7
+    }
+  },
+  {
+    "id": "mem_5436e823-d34e-4a57-943d-f28237353e1e",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (8x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:03.441Z",
+    "updatedAt": "2026-02-17T16:26:03.441Z",
+    "traceRef": "trace_ace8b1f7-4fdb-4326-a6e4-6bff82cd0c8b",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 8
+    }
+  },
+  {
+    "id": "mem_44e6ad67-8cdb-40cd-bef0-ce81a72ea7cb",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (9x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:03.495Z",
+    "updatedAt": "2026-02-17T16:26:03.495Z",
+    "traceRef": "trace_4ed3da6e-8d97-46b5-be69-a1ef767985b1",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 9
+    }
+  },
+  {
+    "id": "mem_6a986145-9c00-4496-8f61-416a88c1bcbf",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:03.965Z",
+    "updatedAt": "2026-02-17T16:26:03.965Z",
+    "traceRef": "trace_d55c7071-58e2-44a2-9683-3890dd19128d",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_bd647037-2ece-4f6d-98b8-2bd7b5cc8228",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (4x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:04.016Z",
+    "updatedAt": "2026-02-17T16:26:04.016Z",
+    "traceRef": "trace_52737e4c-79bc-4caa-8280-ea5d61dace0c",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 4
+    }
+  },
+  {
+    "id": "mem_24a33f5e-af74-4264-a187-7f25aefac50a",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (10x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:04.069Z",
+    "updatedAt": "2026-02-17T16:26:04.069Z",
+    "traceRef": "trace_0427cbc6-86e4-47db-b870-859332c0eede",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 10
+    }
+  },
+  {
+    "id": "mem_0151048d-5638-4937-9f57-72efc96350fb",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:04.277Z",
+    "updatedAt": "2026-02-17T16:26:04.277Z",
+    "traceRef": "trace_ef0b7c84-b13e-4f77-84fe-85b8e0605359",
+    "originSessionId": "session-preplan",
+    "originWorkId": "test-work-preplan",
+    "originAgentId": "agent-preplan",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_b689d611-7735-4742-a1ae-0bc010a6af80",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:19.157Z",
+    "updatedAt": "2026-02-17T16:26:19.157Z",
+    "traceRef": "trace_26ace140-2552-488c-9641-f42263b4e153",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_c602b2ec-9108-42ae-b84a-477442505a72",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (4x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:19.243Z",
+    "updatedAt": "2026-02-17T16:26:19.243Z",
+    "traceRef": "trace_05a088f4-ce9d-4f98-9949-4111db5daa85",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 4
+    }
+  },
+  {
+    "id": "mem_585ecedd-2989-4319-a81d-72db5eb5ea98",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (5x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:19.324Z",
+    "updatedAt": "2026-02-17T16:26:19.324Z",
+    "traceRef": "trace_fc7a7897-d372-4c22-84a2-b8da76f139d4",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 5
+    }
+  },
+  {
+    "id": "mem_9fd22d37-2553-4a23-ad18-518f1149dbf5",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (6x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:19.377Z",
+    "updatedAt": "2026-02-17T16:26:19.377Z",
+    "traceRef": "trace_b7298ef3-9e8a-49b3-8098-5fd68cf63e98",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 6
+    }
+  },
+  {
+    "id": "mem_3aed1cef-e46a-49f1-a43f-38eab380a553",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (7x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:19.476Z",
+    "updatedAt": "2026-02-17T16:26:19.476Z",
+    "traceRef": "trace_714846f7-9664-4d18-8565-f5652b1734f0",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 7
+    }
+  },
+  {
+    "id": "mem_5d8562d9-bd7b-43d4-bcda-40ab6d1d6277",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (8x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:19.533Z",
+    "updatedAt": "2026-02-17T16:26:19.533Z",
+    "traceRef": "trace_6d1f4d5e-28c0-45a6-9f4e-366f1f658ab7",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 8
+    }
+  },
+  {
+    "id": "mem_d7b578fb-e0ae-45b0-a910-513d6c2fef85",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (9x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:19.590Z",
+    "updatedAt": "2026-02-17T16:26:19.590Z",
+    "traceRef": "trace_11505fa5-8af8-443d-bc69-25f6fb88ac87",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 9
+    }
+  },
+  {
+    "id": "mem_95c18fd3-1c7d-4380-b957-a5c20b8c2263",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:20.049Z",
+    "updatedAt": "2026-02-17T16:26:20.049Z",
+    "traceRef": "trace_d39fc624-4c04-4e39-928f-55c455b0956c",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_cdee6dfd-095c-400e-8ebc-fd3482a9d42c",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (4x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:20.101Z",
+    "updatedAt": "2026-02-17T16:26:20.101Z",
+    "traceRef": "trace_111dc575-a989-4fc8-be1c-33e6d74b63f2",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 4
+    }
+  },
+  {
+    "id": "mem_08a5a914-1e94-44aa-934e-3045bf42951e",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (10x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:20.153Z",
+    "updatedAt": "2026-02-17T16:26:20.153Z",
+    "traceRef": "trace_ba9f6dcb-0314-49b1-bbd0-6f39cfc82095",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 10
+    }
+  },
+  {
+    "id": "mem_6d149f36-f0e3-49c8-9aae-32933e85d185",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:26:20.363Z",
+    "updatedAt": "2026-02-17T16:26:20.363Z",
+    "traceRef": "trace_61ecd933-12b2-43e2-9397-7c5fdbf8f377",
+    "originSessionId": "session-preplan",
+    "originWorkId": "test-work-preplan",
+    "originAgentId": "agent-preplan",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_87c9a630-89f1-4f0d-97ca-be69a86b1137",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:30.299Z",
+    "updatedAt": "2026-02-17T16:28:30.299Z",
+    "traceRef": "trace_d02a3381-81f2-4543-b613-9a97b30a73d2",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_c9a972b9-16d9-4d29-9b32-ce72c25a8e3b",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (4x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:30.390Z",
+    "updatedAt": "2026-02-17T16:28:30.390Z",
+    "traceRef": "trace_5b4c1072-8b4e-43b2-8610-6449f93b405d",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 4
+    }
+  },
+  {
+    "id": "mem_0285416f-93ef-4e96-a555-aa900a758e3d",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (5x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:30.475Z",
+    "updatedAt": "2026-02-17T16:28:30.475Z",
+    "traceRef": "trace_df469171-c89d-43f5-abff-bb814443275b",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 5
+    }
+  },
+  {
+    "id": "mem_cd433322-e797-4193-ab84-ec543f35e2e3",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (6x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:30.528Z",
+    "updatedAt": "2026-02-17T16:28:30.528Z",
+    "traceRef": "trace_2139a32e-d364-4ac8-bafa-b53b9e9a56a5",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 6
+    }
+  },
+  {
+    "id": "mem_874122ec-f4dd-4596-84a0-34bb96342e64",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (7x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:30.624Z",
+    "updatedAt": "2026-02-17T16:28:30.624Z",
+    "traceRef": "trace_a4775598-257a-4f9d-b9fc-4fa1749759bb",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 7
+    }
+  },
+  {
+    "id": "mem_71225b97-73c3-4afa-9f1d-adfc117991e6",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (8x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:30.679Z",
+    "updatedAt": "2026-02-17T16:28:30.679Z",
+    "traceRef": "trace_defb7692-8095-47b0-ae08-24abdd53c0c7",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 8
+    }
+  },
+  {
+    "id": "mem_fb18b806-057a-4338-a7f0-204950a3a6be",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (9x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:30.733Z",
+    "updatedAt": "2026-02-17T16:28:30.733Z",
+    "traceRef": "trace_58a50a3f-4bbc-46bf-b0ef-cd1169275f9c",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 9
+    }
+  },
+  {
+    "id": "mem_22f4b02a-0532-4200-a8d2-352b129c2ddb",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:31.215Z",
+    "updatedAt": "2026-02-17T16:28:31.215Z",
+    "traceRef": "trace_49bebf59-f49b-4b50-ac81-5e326e729039",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_708b7e16-f5c2-408d-9496-041e7c20e745",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (4x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:31.268Z",
+    "updatedAt": "2026-02-17T16:28:31.268Z",
+    "traceRef": "trace_131802b2-bf02-4477-aca9-cedd0b30c7f1",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 4
+    }
+  },
+  {
+    "id": "mem_0b9e8b6c-724f-4ff3-9fd0-40509138b181",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (10x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:31.323Z",
+    "updatedAt": "2026-02-17T16:28:31.323Z",
+    "traceRef": "trace_b320f666-0de8-492e-8ce7-4da45c3e4d61",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 10
+    }
+  },
+  {
+    "id": "mem_c6ea2b41-34ad-4480-be67-55fd3f9e298e",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:31.539Z",
+    "updatedAt": "2026-02-17T16:28:31.539Z",
+    "traceRef": "trace_9b5f1f91-d5e0-46dd-ac79-2b4ac9dadee7",
+    "originSessionId": "session-preplan",
+    "originWorkId": "test-work-preplan",
+    "originAgentId": "agent-preplan",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_d7a19680-4170-4318-b7e3-3384140f793c",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:48.483Z",
+    "updatedAt": "2026-02-17T16:28:48.483Z",
+    "traceRef": "trace_a79e45f0-5627-42ba-9b12-bef66cdde144",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_b06606d3-423e-483c-9a47-6a9c1bb4386f",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (4x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:48.571Z",
+    "updatedAt": "2026-02-17T16:28:48.571Z",
+    "traceRef": "trace_1d8cebe5-1b42-4d70-962c-9dd1b2dbc188",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 4
+    }
+  },
+  {
+    "id": "mem_224c9240-12f2-4c6d-9431-e37d80dae794",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (5x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:48.671Z",
+    "updatedAt": "2026-02-17T16:28:48.671Z",
+    "traceRef": "trace_98ad0a16-3c1e-403e-b85c-8f6172bfc640",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 5
+    }
+  },
+  {
+    "id": "mem_16a4700f-8ad9-4a11-b55a-47f939f2b56b",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (6x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:48.737Z",
+    "updatedAt": "2026-02-17T16:28:48.737Z",
+    "traceRef": "trace_87f77ff4-ac80-4324-85ad-dd4015727281",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 6
+    }
+  },
+  {
+    "id": "mem_2bfe4161-ca94-485b-b9de-4a363b8f3338",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (7x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:48.859Z",
+    "updatedAt": "2026-02-17T16:28:48.859Z",
+    "traceRef": "trace_674510e2-62b4-41a4-b9e9-dd8b3d02da36",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 7
+    }
+  },
+  {
+    "id": "mem_e6fa3f9e-0eea-49c3-a4dd-4583416b4356",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (8x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:48.921Z",
+    "updatedAt": "2026-02-17T16:28:48.921Z",
+    "traceRef": "trace_ac30405d-97f3-41e2-8314-a62106cbb13a",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 8
+    }
+  },
+  {
+    "id": "mem_cc49254a-e00f-4e8a-94e0-40d7a0851ac7",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (9x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:48.985Z",
+    "updatedAt": "2026-02-17T16:28:48.985Z",
+    "traceRef": "trace_8575cbd1-94fc-4558-bdbf-444403051038",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 9
+    }
+  },
+  {
+    "id": "mem_d04c3dd6-d339-412d-9e06-ae26c7f4eab0",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:49.507Z",
+    "updatedAt": "2026-02-17T16:28:49.507Z",
+    "traceRef": "trace_ae3324ff-4e00-4010-8164-1213421bb85f",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_1d0071e6-6ea1-4f87-8835-9abca83bf21b",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (4x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:49.571Z",
+    "updatedAt": "2026-02-17T16:28:49.571Z",
+    "traceRef": "trace_6d3dbddc-8716-4db7-a1ad-e588b4cb7f8e",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 4
+    }
+  },
+  {
+    "id": "mem_cda97337-8db9-44dd-a501-e24efec1066f",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (10x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:49.628Z",
+    "updatedAt": "2026-02-17T16:28:49.628Z",
+    "traceRef": "trace_597f9368-0288-42ae-be0d-c192579ae7ca",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 10
+    }
+  },
+  {
+    "id": "mem_61a14cd6-512a-431f-8836-9aacd8ecb863",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:28:49.837Z",
+    "updatedAt": "2026-02-17T16:28:49.837Z",
+    "traceRef": "trace_08e36153-4fb4-4f34-83bf-55c8f83b88af",
+    "originSessionId": "session-preplan",
+    "originWorkId": "test-work-preplan",
+    "originAgentId": "agent-preplan",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_776b47d1-3212-401d-808f-d5e5e9830bed",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:29:44.888Z",
+    "updatedAt": "2026-02-17T16:29:44.888Z",
+    "traceRef": "trace_57df94f7-5827-48ea-88e4-fcff0e979597",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_2ec649e1-66f7-4aa0-a760-d62e1f9830b0",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (4x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:29:44.974Z",
+    "updatedAt": "2026-02-17T16:29:44.974Z",
+    "traceRef": "trace_c0eb97b1-bf1f-47c4-a047-0a7d58fb1605",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 4
+    }
+  },
+  {
+    "id": "mem_82e5220e-062c-4ecb-af72-3e99c4844263",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (5x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:29:45.063Z",
+    "updatedAt": "2026-02-17T16:29:45.063Z",
+    "traceRef": "trace_f7727f6f-7a6c-44fa-a558-aba31896769e",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 5
+    }
+  },
+  {
+    "id": "mem_9cb66a0f-916d-4b23-8826-08375e519f11",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (6x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:29:45.127Z",
+    "updatedAt": "2026-02-17T16:29:45.127Z",
+    "traceRef": "trace_260bba05-4a35-43eb-b485-5d3ad37576a1",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 6
+    }
+  },
+  {
+    "id": "mem_3dbad8f9-4831-4edb-97ff-1e1c983bfc53",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (7x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:29:45.228Z",
+    "updatedAt": "2026-02-17T16:29:45.228Z",
+    "traceRef": "trace_24b911b5-ebbf-46f0-a1b3-536e9c6fef27",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 7
+    }
+  },
+  {
+    "id": "mem_9659b833-52b9-447e-a01f-6ae31623dbda",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (8x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:29:45.284Z",
+    "updatedAt": "2026-02-17T16:29:45.284Z",
+    "traceRef": "trace_625f49f4-9484-46df-9050-4cbde76f2d08",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 8
+    }
+  },
+  {
+    "id": "mem_338a2c57-d282-486a-8f5d-83748860a1e5",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (9x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:29:45.338Z",
+    "updatedAt": "2026-02-17T16:29:45.338Z",
+    "traceRef": "trace_50501a71-08ac-4121-a140-7e8dcd84004e",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 9
+    }
+  },
+  {
+    "id": "mem_157dfe60-5432-4f6a-94be-80a05bd69d8c",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:29:45.815Z",
+    "updatedAt": "2026-02-17T16:29:45.815Z",
+    "traceRef": "trace_93b1d5af-25fd-472a-9437-feb74b1b286a",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_4fe2b66b-af21-4f40-b7c1-70796ef4f8c5",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (4x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:29:45.872Z",
+    "updatedAt": "2026-02-17T16:29:45.872Z",
+    "traceRef": "trace_3ea9b9ce-edff-4ae4-b1b5-66811696563a",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 4
+    }
+  },
+  {
+    "id": "mem_e73489bc-c5a3-4a10-955d-39ee87fe85bd",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (10x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:29:45.926Z",
+    "updatedAt": "2026-02-17T16:29:45.926Z",
+    "traceRef": "trace_1b5e949b-9d76-481b-883f-934b701886af",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 10
+    }
+  },
+  {
+    "id": "mem_fc174fce-cf74-479a-85ee-1cec5d6e186f",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:29:47.107Z",
+    "updatedAt": "2026-02-17T16:29:47.107Z",
+    "traceRef": "trace_4cb63660-fdd1-4c4d-9f89-433c1c3ea59b",
+    "originSessionId": "session-preplan",
+    "originWorkId": "test-work-preplan",
+    "originAgentId": "agent-preplan",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_699db6e0-d5a0-4042-bef3-bd98f833a419",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:30:02.575Z",
+    "updatedAt": "2026-02-17T16:30:02.575Z",
+    "traceRef": "trace_5fa9bd18-2cde-40d6-a8a4-a5ec34637147",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_49b92c67-e887-4414-9f60-9f305ed4c080",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (4x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:30:02.670Z",
+    "updatedAt": "2026-02-17T16:30:02.670Z",
+    "traceRef": "trace_be7abcda-ae3c-4086-ac08-4059622139ad",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 4
+    }
+  },
+  {
+    "id": "mem_8770db5d-9315-48f7-8da1-b7435b201e40",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (5x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:30:02.757Z",
+    "updatedAt": "2026-02-17T16:30:02.757Z",
+    "traceRef": "trace_64d1201e-c582-41b1-8e6b-8533ff042c90",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 5
+    }
+  },
+  {
+    "id": "mem_13b613a2-507e-43f7-a14d-fac3d5408238",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (6x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:30:02.811Z",
+    "updatedAt": "2026-02-17T16:30:02.811Z",
+    "traceRef": "trace_5ccc5d42-a471-4aea-83b3-dc42085cc951",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 6
+    }
+  },
+  {
+    "id": "mem_53768921-f9fc-4a54-b45b-ccac2003b96a",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (7x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:30:02.909Z",
+    "updatedAt": "2026-02-17T16:30:02.909Z",
+    "traceRef": "trace_7078dc31-9391-4a9a-a156-280831a40ab9",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 7
+    }
+  },
+  {
+    "id": "mem_67004cb5-5947-48fc-9ba2-784d165e5c20",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (8x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:30:02.967Z",
+    "updatedAt": "2026-02-17T16:30:02.967Z",
+    "traceRef": "trace_3a3a19fb-5777-4e46-966e-6326e0e72598",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 8
+    }
+  },
+  {
+    "id": "mem_862b6fea-92b7-4641-b256-e24096eb75ad",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (9x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:30:03.033Z",
+    "updatedAt": "2026-02-17T16:30:03.033Z",
+    "traceRef": "trace_d8c420cc-26d9-4af5-994d-3686c29ed827",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 9
+    }
+  },
+  {
+    "id": "mem_8ba12d90-a960-4d48-9d16-12600769a5d8",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:30:03.524Z",
+    "updatedAt": "2026-02-17T16:30:03.524Z",
+    "traceRef": "trace_177f390e-b9e5-4f45-9ce6-abab7b7e97ca",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 3
+    }
+  },
+  {
+    "id": "mem_c61b6647-894b-4ca4-be12-389ebd0f1550",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (4x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:30:03.579Z",
+    "updatedAt": "2026-02-17T16:30:03.579Z",
+    "traceRef": "trace_7314f24e-4e96-4929-812c-6abeceb5fd0b",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 4
+    }
+  },
+  {
+    "id": "mem_14f7ab37-b5a1-47a9-b94b-2721677b4975",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_MISSING_REQUIRED_FIELDS"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_missing_required_fields",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_MISSING_REQUIRED_FIELDS (10x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:30:03.635Z",
+    "updatedAt": "2026-02-17T16:30:03.635Z",
+    "traceRef": "trace_439070b2-a9c8-40b3-aaf4-13d33da0dd0a",
+    "originSessionId": "test-session-001",
+    "originWorkId": "test-work-001",
+    "originAgentId": "test-agent-001",
+    "metadata": {
+      "rejectionCode": "PLAN_MISSING_REQUIRED_FIELDS",
+      "rejectionCount": 10
+    }
+  },
+  {
+    "id": "mem_5b0b62cf-c3ab-4e05-bb53-823f560b7904",
+    "label": "MemoryRecord",
+    "trigger": "rejection_pattern",
+    "phase": "planning",
+    "domainAnchorIds": [],
+    "graphNodeIds": [],
+    "rejectionCodes": [
+      "PLAN_SCOPE_VIOLATION"
+    ],
+    "originStrategyId": "ui_aggrid_feature",
+    "enforcementType": "strategy_signal",
+    "strategySignal": {
+      "featureFlag": "friction_plan_scope_violation",
+      "value": true,
+      "reason": "Repeated rejection code PLAN_SCOPE_VIOLATION (3x)"
+    },
+    "state": "pending",
+    "createdAt": "2026-02-17T16:30:03.853Z",
+    "updatedAt": "2026-02-17T16:30:03.853Z",
+    "traceRef": "trace_516ac42d-ffdd-4104-a61d-78a63b963aae",
+    "originSessionId": "session-preplan",
+    "originWorkId": "test-work-preplan",
+    "originAgentId": "agent-preplan",
+    "metadata": {
+      "rejectionCode": "PLAN_SCOPE_VIOLATION",
+      "rejectionCount": 3
+    }
+  }
+]

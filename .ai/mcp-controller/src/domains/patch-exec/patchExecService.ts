@@ -49,7 +49,8 @@ export function listPatchApplyOptions(): {
     requiredFields: string[];
   };
   astCodemods: ReturnType<typeof listAstCodemods>;
-  customCodemodsAllowed: false;
+  customCodemodsAllowed: boolean;
+  customCodemodNote?: string;
   citationRule: string;
 } {
   return {
@@ -58,7 +59,8 @@ export function listPatchApplyOptions(): {
       requiredFields: ["nodeId", "targetFile", "targetSymbols", "find", "replace"]
     },
     astCodemods: listAstCodemods(),
-    customCodemodsAllowed: false,
+    customCodemodsAllowed: true,
+    customCodemodNote: "Custom codemods can be registered via memory records or seed data. They follow the same sandbox verification as built-in codemods.",
     citationRule: "When operation=ast_codemod, change-node citations must include codemod:<codemodId>."
   };
 }

@@ -1,806 +1,778 @@
-# Graph-Backed MCP Controller Full Spec (Atomic v1)
+# Graph-Backed MCP Controller — Full Specification
+
+**Version:** 2.0
+**Date:** 2026-02-17
+**Status:** Aligned with implementation (62 tests, 0 failures)
+
+---
 
 ## Summary
 
-Single-tool MCP controller with lexical-first graph retrieval, high-signal context, validator-gated planning, weak-model-safe execution, strict worktree scope, and observability-driven memory/policy evolution.
+Single-tool MCP controller over NDJSON stdio transport. Lexical-first graph retrieval, validator-gated planning, weak-model-safe execution, strict worktree scope, dimensional memory system with friction-driven learning, and observability-driven policy evolution.
+
+---
 
 ## Core Model
 
-- Strong models: planning only.
-- Weak models: implementation only.
-- MCP: controller authority.
+- Strong models plan, weak models execute.
+- MCP is the sole controller authority.
+- NDJSON over stdio (JSON-RPC 2.0, protocol version `2025-11-25`).
+- One external tool: `controller_turn`.
+- No embeddings, local or external.
+
+---
 
 ## Hard Constraints
 
-- One external MCP tool: `controller.turn`.
-- No embeddings, local or external.
-- Local Neo4j plus lexical side index.
-- PlanGraph required before repo writes.
-- Pre-plan writes allowed only to scratch path.
-- Work scoped by `workId` and worktree boundary.
-- This system runs against the target Angular 14 repository context only.
-- Supported external artifact connectors in v1 are Jira and Swagger only.
-- Jira authentication in v1 uses Personal Access Token (PAT) only.
+| Constraint | Detail |
+|-----------|--------|
+| Single tool | `controller_turn` — all interactions through one tool |
+| No embeddings | Lexical-first retrieval only |
+| Local Neo4j | `bolt://127.0.0.1:7687`, lazy dynamic import (Node ≥25 workaround) |
+| PlanGraph before writes | No repo mutations without validated plan |
+| Scratch writes only pre-plan | `write_scratch_file` resolves under `.ai/tmp/work/{workId}/scratch/` |
+| Work scoping | `workId` + worktree boundary enforced on every operation |
+| Connectors | Jira and Swagger only in v1, PAT auth |
+| Schema version | `1.0.0` |
 
-## Domain Structure
+---
 
-- `src/domains/controller`
-- `src/domains/capability-gating`
-- `src/domains/context-pack`
-- `src/domains/plan-graph`
-- `src/domains/strategy`
-- `src/domains/evidence-policy`
-- `src/domains/worktree-scope`
-- `src/domains/patch-exec`
-- `src/domains/code-run`
-- `src/domains/observability`
-- `src/domains/memory-promotion`
-- `src/domains/recipes`
-- `src/domains/connectors`
-- `src/domains/graph-ops`
-- `src/domains/indexing`
-- `src/domains/dashboard`
-- `src/infrastructure/neo4j`
-- `src/infrastructure/lexical-index`
-- `src/infrastructure/fs`
-- `src/infrastructure/git`
-- `src/infrastructure/vm`
-- `src/infrastructure/http`
-- `src/contracts`
-- `src/config`
+## Architecture
 
-## Modularity Rules
+### Source Tree
 
-- Soft file target: 200-350 lines.
-- Warning threshold: 400 lines.
-- Review and split justification at 500+ lines.
-- No magic strings.
-- Use constants, enums, and typed models.
-- Every domain folder must include:
-- `README.md` with purpose, extension guide, gotchas, invariants.
-- Minimal tests for invariants and failure modes.
+```
+.ai/mcp-controller/src/
+├── index.ts                          # Entry point (dashboard-enabled)
+├── config/                           # Layered config loading + validation
+│   ├── loadConfig.ts
+│   ├── types.ts
+│   └── validateConfig.ts
+├── contracts/                        # Type contracts
+│   ├── controller.ts                 # TurnRequest, TurnResponse, RunState
+│   ├── memoryRecord.ts               # MemoryRecord, DomainAnchor, FrictionLedgerEntry
+│   └── planGraph.ts                  # PlanGraphDocument, node kinds, evidence policy
+├── domains/
+│   ├── browser-automation/           # CDP plugin contracts (disabled in v1)
+│   ├── capability-gating/            # State → verb matrix
+│   ├── code-run/                     # Sandboxed IIFE execution
+│   ├── connectors/                   # Jira + Swagger adapters, shared kernel
+│   ├── context-pack/                 # Pack builder, retrieval lanes, reranking
+│   ├── controller/                   # Turn dispatch, session, budget, handlers
+│   │   └── handlers/                 # 7 handler files (read, plan, mutation, etc.)
+│   ├── dashboard/                    # Express HTTP + SSE (port 8722)
+│   ├── evaluation/                   # Golden tasks + metrics harness
+│   ├── evidence-policy/              # Evidence category minima validation
+│   ├── graph-ops/                    # Neo4j sync/export, JSONL seeds
+│   ├── indexing/                     # ts-morph AST + lexical index
+│   ├── memory/                       # Memory system (service, anchors, config)
+│   ├── memory-promotion/             # Legacy promotion service (superseded)
+│   ├── observability/                # EventStore, rejection heatmaps, SSE
+│   ├── patch-exec/                   # Structured patches, AST codemods, collision guard
+│   ├── plan-graph/                   # Plan validator + memory rule enforcement
+│   ├── proof-chains/                 # ag-Grid + federation proof chain builder
+│   ├── recipes/                      # Recipe registry (replace_lexeme, run_validation)
+│   ├── strategy/                     # ContextSignature + deterministic strategy selection
+│   └── worktree-scope/               # Path canonicalization, scope enforcement
+├── infrastructure/
+│   ├── fs/                           # Scoped file I/O
+│   ├── git/                          # Repo snapshot IDs
+│   ├── http/                         # HTTP client with retry/backoff/cache
+│   ├── lexical-index/                # In-memory token-based search
+│   ├── neo4j/                        # Lazy Neo4j driver (bolt)
+│   └── vm/                           # vm.Script sandbox
+├── mcp/
+│   ├── handler.ts                    # Tool schema, request parsing, result formatting
+│   └── stdioServer.ts                # NDJSON stdio transport, JSON-RPC 2.0
+├── runtime/
+│   └── bootstrapRuntime.ts           # Config → EventStore → Connectors → Indexing → Controller
+└── shared/
+    ├── artifacts.ts                  # Per-node artifact bundles
+    ├── constants.ts                  # Tool name, capabilities, budget, schema version
+    ├── fileStore.ts                  # ensureDir, writeText, readText, appendJsonl
+    ├── fsPaths.ts                    # Path resolution (repo root, scratch, context, obs)
+    ├── ids.ts                        # ID generation (ensureId, traceRef)
+    ├── replaceGuard.ts               # Safe string replacement with error logging
+    └── verbCatalog.ts                # Verb descriptors (description, whenToUse, args)
+```
 
-## Single Tool Protocol
+### Modularity Rules
 
-### Request envelope
+- Soft target: 200–350 lines per file.
+- Warning at 400 lines.
+- 500+ requires justification.
+- Every domain folder includes `README.md` with purpose, extension guide, gotchas, invariants.
 
-- `runSessionId?`
-- `workId?`
-- `agentId?`
-- `verb`
-- `args`
-- `traceMeta?`
+---
 
-### Response envelope
+## Protocol
 
-- `runSessionId`
-- `workId`
-- `agentId`
-- `state`
-- `outcome?`
-- `capabilities[]`
-- `scope`
-- `result`
-- `denyReasons[]`
-- `knowledgeStrategy`
-- `budgetStatus`
-- `traceRef`
-- `schemaVersion`
+### Transport
 
-## Capability Gating
+- NDJSON over stdio (newline-delimited JSON)
+- JSON-RPC 2.0 with methods: `initialize`, `tools/list`, `tools/call`, `ping`
+- Protocol version: `2025-11-25`
+- Lazy runtime boot on first `tools/call`
 
-### Pre-plan
+### Request Envelope (`TurnRequest`)
 
-- `list`
-- `list_allowed_files`
-- `read_range`
-- `read_symbol`
-- `read_neighbors`
-- `grep_lexeme`
-- `original_prompt`
-- `write_tmp`
-- `submit_plan`
-- `escalate`
+| Field | Type | Required |
+|-------|------|----------|
+| `runSessionId` | string | optional (auto-generated) |
+| `workId` | string | optional (auto-generated) |
+| `agentId` | string | optional (auto-generated) |
+| `originalPrompt` | string | optional |
+| `verb` | string | **required** |
+| `args` | Record | optional |
+| `traceMeta` | Record | optional |
 
-### Post-plan approved
+### Response Envelope (`TurnResponse`)
 
-- All pre-plan commands remain.
-- `patch_apply`
-- `code_run`
+| Field | Type | Always |
+|-------|------|--------|
+| `runSessionId` | string | yes |
+| `workId` | string | yes |
+| `agentId` | string | yes |
+| `state` | RunState | yes |
+| `outcome` | `"ok" \| "pack_insufficient"` | optional |
+| `capabilities` | string[] | yes |
+| `verbDescriptions` | Record<verb, descriptor> | yes |
+| `scope` | `{ worktreeRoot, scratchRoot }` | yes |
+| `result` | Record | yes |
+| `denyReasons` | string[] | yes |
+| `suggestedAction` | `{ verb, reason, args? }` | on deny |
+| `knowledgeStrategy` | `{ strategyId, contextSignature?, reasons[] }` | yes |
+| `budgetStatus` | `{ maxTokens, usedTokens, thresholdTokens, blocked }` | yes |
+| `traceRef` | string | yes |
+| `schemaVersion` | string | yes |
+| `subAgentHints` | `{ recommended, splits[] }` | yes |
+| `packInsufficiency` | object | on pack_insufficient |
 
-### Scratch path rules
+---
 
-- `write_tmp` resolves under `.ai/tmp/work/{workId}/scratch/...` only.
-- Scratch artifacts are observable and referenceable by artifact ID.
+## Run States
 
-## ContextPack Contract
+```
+PLAN_REQUIRED → PLAN_ACCEPTED → EXECUTION_ENABLED
+     ↓                                    ↓
+BLOCKED_BUDGET                        COMPLETED
+     ↓                                    ↓
+  FAILED ←──────────────────────────── FAILED
+```
 
-Required sections:
+| State | Description |
+|-------|-------------|
+| `PLAN_REQUIRED` | Initial. Read-only verbs + plan submission. |
+| `PLAN_ACCEPTED` | Plan validated. All verbs available. |
+| `EXECUTION_ENABLED` | Execution in progress. All verbs available. |
+| `BLOCKED_BUDGET` | Token budget exceeded. Only safe verbs. |
+| `FAILED` | Terminal failure. Only safe verbs + retrospective. |
+| `COMPLETED` | Task done. Only safe verbs + retrospective. |
 
-- Header IDs, hashes, and `schemaVersion`.
-- Task constraints and conflicts.
-- Active policy set.
-- Active strategy with evidence-backed reasons.
-- Anchors and proof chains.
-- Allowed files and command capabilities.
-- Validation plan.
-- Missingness and conflicts.
-- Schema links and expectations.
+---
 
-High-signal rule:
+## Verbs (18 total)
 
-- ContextPack is minimum sufficient context only.
-- No bulk dumps unless explicitly required by policy or escalation.
+### Pre-Plan Verbs (14) — Available in `PLAN_REQUIRED`
 
-## PlanGraph Day-0 Envelope
+| # | Verb | Purpose | Required Args |
+|---|------|---------|---------------|
+| 1 | `list_available_verbs` | List verbs available in current state | — |
+| 2 | `list_scoped_files` | List all files in worktree scope | — |
+| 3 | `list_directory_contents` | List entries in a directory | `targetDir` |
+| 4 | `read_file_lines` | Read line range from scoped file | `targetFile` |
+| 5 | `lookup_symbol_definition` | Look up symbol in AST index | `symbol` |
+| 6 | `trace_symbol_graph` | Find related symbols via graph | `symbol \| targetFile \| query` |
+| 7 | `search_codebase_text` | Grep text pattern across scope | `pattern` |
+| 8 | `fetch_jira_ticket` | Fetch Jira ticket by key | `ticketKey` |
+| 9 | `fetch_api_spec` | Fetch OpenAPI/Swagger spec | `specUrl` |
+| 10 | `get_original_prompt` | Retrieve stored user prompt | — |
+| 11 | `write_scratch_file` | Write temp file to scratch area | `relativePath`, `content` |
+| 12 | `submit_execution_plan` | Submit PlanGraph for validation | `planGraph` |
+| 13 | `request_evidence_guidance` | Signal stuck, get guidance | `blockingReasons` |
+| 14 | `signal_task_complete` | Trigger session retrospective | — |
 
-Required:
+### Post-Plan Verbs (4) — Added in `PLAN_ACCEPTED` / `EXECUTION_ENABLED`
 
-- `workId`
-- `agentId`
-- `runSessionId`
-- `repoSnapshotId`
-- `worktreeRoot`
-- `contextPackRef`
-- `contextPackHash`
-- `policyVersionSet`
-- `scopeAllowlistRef`
-- `knowledgeStrategyId`
-- `knowledgeStrategyReasons[]` with evidence refs
-- `evidencePolicy` object
-- `planFingerprint`
-- `sourceTraceRefs[]`
-- `schemaVersion`
+| # | Verb | Purpose | Required Args |
+|---|------|---------|---------------|
+| 15 | `apply_code_patch` | Structured code patch | `planNodeId`, `targetFile`, `edits` |
+| 16 | `run_sandboxed_code` | Execute sandboxed IIFE | `planNodeId`, `code` |
+| 17 | `execute_gated_side_effect` | Gated side-effect (git, etc.) | `planNodeId`, `sideEffectType` |
+| 18 | `run_automation_recipe` | Run named recipe | `recipeId`, `planNodeId`, `artifactBundleRef`, `diffSummaryRef` |
 
-Node kinds:
+### State-Specific Gating
 
-- `change`
-- `validate`
-- `escalate`
-- `side_effect`
+| State | Available |
+|-------|-----------|
+| `PLAN_REQUIRED` | Verbs 1–14 |
+| `PLAN_ACCEPTED` | Verbs 1–18 |
+| `EXECUTION_ENABLED` | Verbs 1–18 |
+| `BLOCKED_BUDGET` | `list_available_verbs`, `get_original_prompt`, `request_evidence_guidance` |
+| `FAILED` | `list_available_verbs`, `get_original_prompt`, `signal_task_complete` |
+| `COMPLETED` | `list_available_verbs`, `get_original_prompt`, `signal_task_complete` |
 
-Kind-specific required fields are mandatory and validator-enforced.
+### Budget-Safe Verbs
 
-## PlanGraph Kind-Specific Contracts (Mandatory)
+These verbs execute even when token budget is exceeded:
+- `list_available_verbs`
+- `get_original_prompt`
+- `request_evidence_guidance`
+- `signal_task_complete`
 
-### Common fields for all node kinds
+### Verb Descriptions
 
-Required on every node:
+Every response includes `verbDescriptions` — a record mapping each available verb to:
+```typescript
+{
+  description: string;    // What the verb does
+  whenToUse: string;      // When the agent should use it
+  requiredArgs: string[]; // Mandatory arguments
+  optionalArgs: string[]; // Optional arguments
+}
+```
 
-- `nodeId`
-- `kind`
-- `dependsOn[]`
-- `atomicityBoundary`
-- `expectedFailureSignatures[]`
-- `correctionCandidateOnFail`
+### Suggested Action
 
-`atomicityBoundary` must be machine-checkable and include:
+When a verb is denied, the response includes `suggestedAction`:
+```typescript
+{
+  verb: string;    // What verb to call instead
+  reason: string;  // Why this is suggested
+  args?: Record;   // Pre-filled arguments if applicable
+}
+```
 
-- `inScopeAcceptanceCriteriaIds[]`
-- `outOfScopeAcceptanceCriteriaIds[]`
-- `inScopeModules[]`
-- `outOfScopeModules[]`
+---
 
-### `change` nodes
+## Handler Architecture
 
-Required:
+| Handler File | Verbs | Notes |
+|-------------|-------|-------|
+| `readHandlers.ts` | `read_file_lines`, `lookup_symbol_definition`, `search_codebase_text`, `list_directory_contents`, `trace_symbol_graph` | Few-shot injection on `trace_symbol_graph` |
+| `planHandlers.ts` | `submit_execution_plan`, `write_scratch_file` | Memory rule enforcement on plan validation |
+| `mutationHandlers.ts` | `apply_code_patch`, `run_sandboxed_code`, `execute_gated_side_effect` | Collision guard, artifact bundles |
+| `connectorHandlers.ts` | `fetch_jira_ticket`, `fetch_api_spec` | External artifact connectors |
+| `escalateHandler.ts` | `request_evidence_guidance` | Evidence escalation with guidance |
+| `recipeHandler.ts` | `run_automation_recipe` | Recipe execution with episodic events |
+| `retrospectiveHandler.ts` | `signal_task_complete` | Session retrospective + friction analysis |
 
-- `operation` (`create|modify|delete`)
-- `targetFile`
-- `targetSymbols[]` (or explicit symbol-creation intent for `create`)
-- `whyThisFile`
-- `editIntent`
-- `escalateIf[]`
-- `citations[]`
-- `codeEvidence[]`
-- `artifactRefs[]`
-- `policyRefs[]`
-- `verificationHooks[]`
+---
 
-Conditional:
+## Context Pack
 
-- `fewShotRefs[]` or `recipeRefs[]`
-- If strategy or policy marks examples mandatory, at least one must be present.
-- If single-source evidence is used:
-- `lowEvidenceGuard = true`
-- `uncertaintyNote`
-- `requiresHumanReview = true`
+### Trigger
 
-### `validate` nodes
+Context pack is assembled only on `submit_execution_plan` (not `write_scratch_file`).
 
-Required:
+### Required Sections
 
-- `verificationHooks[]`
-- `mapsToNodeIds[]`
-- `successCriteria`
+1. Header (IDs, hashes, `schemaVersion`)
+2. Task constraints and conflicts
+3. Active policy set
+4. Active strategy with evidence-backed reasons
+5. Anchors and proof chains
+6. Allowed files and capabilities
+7. Validation plan
+8. Missingness and conflicts
+9. Active memories (from dimensional memory system)
 
-### `escalate` nodes
+### Memory Injection
 
-Required:
+Active memories matching the plan's domain anchors are included in the context pack:
+```typescript
+{
+  activeMemories: [{
+    id, enforcementType, trigger, phase, state,
+    domainAnchorIds, rejectionCodes,
+    fewShot?, planRule?, strategySignal?, note?
+  }]
+}
+```
 
-- `requestedEvidence[]`
-- `blockingReasons[]`
-- `proposedNextStrategyId?`
+### Pack Insufficiency
 
-`requestedEvidence[]` must be typed:
+When context pack cannot be assembled (e.g., no indexing service), returns:
+- `outcome: "pack_insufficient"`
+- `missingAnchors[]` with `anchorType`, `requiredBy`, `whyRequired`, `attemptedSources[]`, `confidence`
+- `escalationPlan[]` with typed actions
+- `blockedCommands[]` that remain unavailable
 
-- `artifact_fetch`
-- `graph_expand`
-- `pack_rebuild`
+---
 
-### `side_effect` nodes
+## PlanGraph
 
-Required:
+### Envelope Required Fields
 
-- `sideEffectType`
-- `sideEffectPayloadRef`
-- `commitGateId`
+| Field | Type |
+|-------|------|
+| `workId` | string |
+| `agentId` | string |
+| `runSessionId` | string |
+| `repoSnapshotId` | string |
+| `worktreeRoot` | string |
+| `contextPackRef` | string |
+| `contextPackHash` | string |
+| `policyVersionSet` | Record |
+| `scopeAllowlistRef` | string |
+| `knowledgeStrategyId` | string |
+| `knowledgeStrategyReasons[]` | array with evidence refs |
+| `evidencePolicy` | object (category minima) |
+| `planFingerprint` | string |
+| `sourceTraceRefs[]` | array |
+| `schemaVersion` | string |
 
-Rule:
+### Node Kinds
 
-- `dependsOn[]` must include relevant `validate` nodes unless policy explicitly allows pre-validation side effects.
+| Kind | Purpose | Key Required Fields |
+|------|---------|-------------------|
+| `change` | File mutation | `operation`, `targetFile`, `targetSymbols[]`, `whyThisFile`, `editIntent`, `citations[]`, `codeEvidence[]`, `verificationHooks[]` |
+| `validate` | Verification step | `verificationHooks[]`, `mapsToNodeIds[]`, `successCriteria` |
+| `escalate` | Evidence request | `requestedEvidence[]`, `blockingReasons[]` |
+| `side_effect` | External action | `sideEffectType`, `sideEffectPayloadRef`, `commitGateId` |
+
+### Common Node Fields
+
+All nodes require: `nodeId`, `kind`, `dependsOn[]`, `atomicityBoundary`, `expectedFailureSignatures[]`, `correctionCandidateOnFail`.
+
+### Validation
+
+The plan validator checks:
+1. Envelope completeness
+2. Per-node required fields by kind
+3. Scope and safety (path canonicalization, allowlist)
+4. Evidence rules (category minima, distinct-source)
+5. Strategy compliance
+6. **Memory rules** (active `plan_rule` memories inject required steps and deny conditions)
+
+Memory rule results are returned separately:
+```typescript
+{
+  memoryRuleResults: [{
+    memoryId: string;
+    condition: string;
+    satisfied: boolean;
+    denyCode?: string;
+  }]
+}
+```
+
+---
+
+## Memory System
+
+### Overview
+
+The memory system learns from friction (repeated rejections, human corrections) and enforces knowledge on future sessions through three mechanisms.
+
+### Enforcement Types
+
+| Type | Mechanism |
+|------|-----------|
+| `few_shot` | Injected into `trace_symbol_graph` results as before/after code examples |
+| `plan_rule` | Added as required steps or deny conditions in plan validation |
+| `strategy_signal` | Overrides strategy feature flags for specific domains |
+| `informational` | Surfaced in context packs but not actively enforced |
+
+### Memory Record (Dimensional Model)
+
+```typescript
+{
+  // Identity
+  id: string;
+
+  // WHERE dimensions
+  trigger: "rejection_pattern" | "human_override" | "retrospective" | "rule_violation" | "friction_signal";
+  phase: "exploration" | "planning" | "execution" | "retrospective";
+  domainAnchorIds: string[];      // Folder-based domain anchors
+  graphNodeIds?: string[];        // Optional graph node references
+
+  // WHAT dimension
+  enforcementType: "few_shot" | "plan_rule" | "strategy_signal" | "informational";
+  fewShot?: FewShotExample;       // instruction, before, after, antiPattern, whyWrong
+  planRule?: PlanRule;             // condition, requiredSteps[], denyCode
+  strategySignal?: StrategySignal; // featureFlag, value, reason
+
+  // WHY dimension
+  rejectionCodes: string[];
+  originStrategyId?: string;
+  note?: string;
+
+  // Lifecycle
+  state: "pending" | "provisional" | "approved" | "rejected" | "expired";
+  createdAt: string;
+  updatedAt: string;
+  traceRef: string;
+}
+```
+
+### Memory Lifecycle
+
+```
+pending → provisional → approved → retired
+              ↑
+        human override (skip to approved)
+```
+
+- **Pending**: Auto-created from rejection friction. Waits for contest window (default 48h).
+- **Provisional**: Auto-promoted after contest window. Enforced but reversible.
+- **Approved**: Human-approved or auto-promoted (for safe types). Fully enforced.
+- **Rejected**: Human-rejected. Will not be promoted.
+- **Expired**: Provisional that timed out without approval.
+
+### Three Entry Points
+
+1. **Friction-based** (automatic): When the same rejection code hits `rejectionThreshold` (default 3) times, a memory candidate is auto-created with scaffolded few-shot data.
+2. **Human override** (file drop): Drop JSON files in `.ai/memory/overrides/`. Processed on next `submit_execution_plan`. Goes straight to `approved` state.
+3. **Retrospective** (`signal_task_complete`): Handler reviews all friction data and scaffolds memory candidates from high-frequency patterns.
+
+### Domain Anchors
+
+- Auto-seeded from repository folder structure.
+- Each folder becomes a `DomainAnchor` node with parent-child `:CONTAINS` relationships.
+- Configurable max depth (default 3) and exclude patterns.
+- Memories are connected to anchors via `domainAnchorIds`.
+- File → anchor resolution finds most specific match and expands hierarchy.
+
+### Friction Ledger
+
+Every rejection event is logged to `.ai/tmp/friction-ledger.jsonl`:
+```typescript
+{
+  ts: string;
+  trigger: string;
+  rejectionCodes: string[];
+  domainAnchorIds: string[];
+  memoryId?: string;
+  rejectionCount: number;
+  resolved: boolean;
+  strategyId: string;
+  sessionId: string;
+  workId: string;
+}
+```
+
+### Configuration
+
+Edit `.ai/mcp-controller/src/domains/memory/config.ts`:
+
+| Setting | Default | Purpose |
+|---------|---------|---------|
+| `rejectionThreshold` | 3 | Rejections before auto-creating memory |
+| `contestWindowHours` | 48 | Hours pending memories wait before promotion |
+| `provisionalExpiryHours` | 48 | Hours provisional memories wait before expiring |
+| `humanOverrideInitialState` | `"approved"` | State for human-dropped memories |
+| `enableFewShotInjection` | true | Inject few-shots in `trace_symbol_graph` |
+| `enablePlanRuleMutation` | true | Enforce plan rules from memories |
+| `enableStrategyOverride` | true | Allow strategy signal overrides |
+| `anchorAutoSeedMaxDepth` | 3 | Folder depth for domain anchor scanning |
+| `anchorExcludePatterns` | `[node_modules, .git, .ai, dist, build, ...]` | Folders to skip |
+| `enableFrictionLedger` | true | Enable friction event logging |
+| `frictionLedgerMaxEntries` | 5000 | Max entries before rotation |
+| `enableAutoScaffoldFromRejections` | true | Auto-scaffold few-shots from rejections |
+| `autoScaffoldMinRejections` | 3 | Min rejections for auto-scaffolding |
+| `autoPromotableEnforcementTypes` | `["informational", "strategy_signal"]` | Types that can auto-promote |
+| `humanApprovalRequired` | `["plan_rule"]` | Types requiring human approval |
+
+### Files
+
+| Path | Purpose |
+|------|---------|
+| `src/contracts/memoryRecord.ts` | Type contracts |
+| `src/domains/memory/config.ts` | Configuration |
+| `src/domains/memory/memoryService.ts` | Core lifecycle service (470 lines) |
+| `src/domains/memory/anchorSeeder.ts` | Domain anchor scanner (253 lines) |
+| `.ai/memory/records.json` | Persisted memory records (runtime) |
+| `.ai/memory/changelog.jsonl` | Memory state transitions |
+| `.ai/memory/overrides/` | Human override drop folder |
+| `.ai/tmp/friction-ledger.jsonl` | Friction event log |
+
+---
+
+## signal_task_complete — Session Retrospective
+
+When the agent calls `signal_task_complete`:
+
+1. **Friction digest** is generated:
+   - Rejection code heatmap
+   - Top 10 rejection signatures
+   - Retrieval hotspots
+   - Rejection trend over time
+   - Pending correction count
+
+2. **Memory status** is reported:
+   - Pending memories (with scaffolded flag)
+   - Provisional memories
+   - Approved count
+
+3. **Session statistics**:
+   - Total turns, total rejections
+   - Verb distribution
+   - Rejection distribution
+
+4. **Suggestions** are generated:
+   - High-frequency rejection codes → plan_rule candidates
+   - Top friction signatures → few-shot candidates
+   - Scaffolded memories needing human review
+
+5. **State transitions** to `COMPLETED`.
+
+Triggered via `.github/copilot-instructions.md`:
+> When all implementation tasks are complete, call `signal_task_complete` with an optional `summary` to generate a session retrospective.
+
+---
 
 ## Evidence Policy
 
-Configurable:
+| Field | Purpose |
+|-------|---------|
+| `minRequirementSources` | Minimum requirement citations per change |
+| `minCodeEvidenceSources` | Minimum code evidence per change |
+| `minPolicySources` | Minimum policy references |
+| `allowSingleSourceWithGuard` | Enable low-evidence guard path |
+| `lowEvidenceGuardRules[]` | Rules for single-source allowance |
+| `distinctSourceDefinition` | How "distinct" sources are defined |
 
-- `minRequirementSources`
-- `minCodeEvidenceSources`
-- `minPolicySources`
-- `allowSingleSourceWithGuard`
-- `lowEvidenceGuardRules[]`
-- `distinctSourceDefinition`
+Single-source path requires: `lowEvidenceGuard=true`, `uncertaintyNote`, `requiresHumanReview=true`.
 
-Feature-work category coverage rule:
-
-- At least one requirement citation.
-- At least one code anchor.
-
-Single-source path allowed only when:
-
-- `allowSingleSourceWithGuard = true`
-- Node sets low-evidence guard fields.
-- Node includes uncertainty plus review requirement.
-
-Non-gameable evidence rules:
-
-- Distinct-source validation is category-aware.
-- Two references to the same underlying file or artifact do not count as two sources.
-- Feature work must satisfy category coverage:
-- requirement evidence present
-- code evidence present
+---
 
 ## Execution Model
 
-### `patch_apply`
+### `apply_code_patch`
 
-- Structured edit intent only.
-- Enforced against approved node, file, and symbols.
-- No freeform repo writes.
+- Structured edit intent only (replace_text or AST codemod).
+- Enforced against approved plan node, file, and symbols.
+- 4 built-in AST codemods: `rename_identifier_in_file`, `update_import_specifier`, `update_route_path_literal`, `rewrite_template_tag`.
+- Custom codemods registrable via runtime registry (`registerCustomCodemod()`).
 
-### `code_run`
+### `run_sandboxed_code`
 
-- Async IIFE only.
-- Preflight required:
-- declared inputs
-- timeout
-- memory cap
-- artifact target
-- expected return shape
-- Reject placeholder or non-substantive returns.
+- Async IIFE in `vm.Script` sandbox.
+- Preflight validates: declared inputs, timeout, memory cap, expected return shape.
+- Placeholder/non-substantive returns rejected.
 
-### Per-node artifact bundle
+### `execute_gated_side_effect`
 
-- `result.json`
-- `op.log`
-- `trace.refs.json`
-- `diff.summary.json` for patch operations
-- `validation.json`
+- Must reference approved `side_effect` plan node with `commitGateId`.
+- No side effects without explicit commit gate.
 
-### Unified side-effect collision guard
+### Per-Node Artifact Bundle
 
-All mutation-capable operations must pass the same collision checks:
+- `result.json`, `op.log`, `trace.refs.json`, `diff.summary.json`, `validation.json`
 
-- `patch_apply`
-- `code_run`
-- `side_effect`
+### Unified Collision Guard
 
-Rules:
+All mutation verbs pass the same collision checks:
+- File and symbol reservations
+- Graph mutation reservations
+- External side-effect gates
+- Collisions reject before execution.
 
-- Operation declares intended effect set before execution.
-- MCP checks for collisions against:
-- approved `side_effect` nodes
-- scoped file and symbol reservations
-- graph mutation reservations
-- external side-effect gates
-- Collisions reject execution before apply.
+---
 
-`code_run` defaults:
+## Strategy Enforcement
 
-- Artifact-only behavior by default.
-- No external network/process side effects unless explicitly allowed by approved `side_effect` node and commit gate.
-- Primary result must be persisted in artifact bundle and returned as pointer/summary.
+### ContextSignature Features
+
+| Feature | Type |
+|---------|------|
+| `hasJira` | boolean |
+| `hasSwagger` | boolean |
+| `mentionsAgGrid` | boolean |
+| `touchesShadowDom` | boolean |
+| `crossesFederationBoundary` | boolean |
+| `migrationAdpDetected` | boolean |
+| `contractAnchorPresent` | boolean |
+| `testConfidenceLevel` | ordinal |
+
+### Strategy Classes (4 mandatory)
+
+| Strategy ID | When Selected |
+|------------|---------------|
+| `ui_aggrid_feature` | ag-Grid UI work |
+| `api_contract_feature` | API/contract changes |
+| `migration_adp_to_sdf` | ADP → SDF migration |
+| `debug_symptom_trace` | Debugging from symptoms |
+
+### Strategy Switch Triggers
+
+- `plan_rejected`, `policy_conflict`, `repeated_failure_threshold`, `repeated_action_threshold`, `missing_required_proof_chain`
+
+---
+
+## Proof Chains
+
+### ag-Grid Origin Chain
+
+```
+Table → ColumnDef → CellRenderer → NavTrigger → Route → Component → Service → Definition
+```
+
+### Federation Proof Chain
+
+```
+Host Route → Federation Mapping → Remote Expose → Remote Module → Destination Component
+```
+
+Built via Neo4j graph traversal with AST/lexical fallbacks (`ProofChainBuilder`, 495 lines).
+
+---
 
 ## Connector Model
 
-Adapters:
+| Connector | Adapter | Auth |
+|-----------|---------|------|
+| Jira | `jiraTicketSlicer.ts` | PAT from `.ai/auth/jira.token` |
+| Swagger | `connectorRegistry.ts` | PAT or public |
 
-- `jira`
-- `swagger`
+Shared kernel (`connectorKernel.ts`): retry/backoff, rate limit, cache, tracing, normalized errors.
 
-Shape:
+### Retrieval Lanes (5 mandatory)
 
-- Custom adapter per connector.
-- Shared kernel for auth plumbing, retry/backoff, rate limit, cache, tracing, normalized errors.
+1. Lexical lane
+2. Symbol lane
+3. Policy lane
+4. Artifact lane
+5. Episodic memory lane
 
-Ingestion targeting:
+---
 
-- Config-driven includes/excludes and module hints.
+## Recipes
 
-Mandatory retrieval lanes:
+| Recipe ID | Purpose |
+|-----------|---------|
+| `replace_lexeme_in_file` | Codemod-style lexeme replacement |
+| `run_targeted_validation` | Targeted test/validation execution |
 
-- lexical lane
-- symbol lane
-- policy lane
-- artifact lane
-- episodic memory lane
+Execution emits episodic `recipe_usage` event with: `recipeId`, `validatedParams`, `workId`, `runSessionId`, `planNodeId`, `artifactBundleRef`, `diffSummaryRef`, `validationOutcome`, `failureSignature?`.
 
-Jira auth contract:
+---
 
-- PAT token source from `.ai/auth/jira.token` or configured local override.
-- No alternate Jira auth methods in v1.
+## Observability
 
-## CDP Boundary
+### EventStore
 
-- Define plugin contracts now in `browser-automation` domain.
-- Keep runtime disabled behind feature flag in v1.
+- In-memory event store with SSE streaming.
+- Methods: `append()`, `onEvent()`, `listRecent()`, `listErrors()`, `listPendingCorrections()`.
+- Analytics: `rejectionHeatmap()`, `rejectionTrend()`, `topRejectionSignatures()`, `retrievalHotspots()`.
 
-## Config Portability
+### Dashboard
 
-Layered files:
+- Express/HTTP on port 8722 (configurable via `MCP_DASHBOARD_PORT`).
+- Endpoints: `/health`, `/turn`, `/worktrees`, `/runs`, `/errors`, `/policies/pending`, `/metrics`, `/stream/events` (SSE).
 
-- `.ai/config/base.json`
-- `.ai/config/repo.json`
-- `.ai/config/env.local.json` (gitignored)
-- `.ai/config/schema.json`
-
-Startup:
-
-- Validate merged config before service starts.
-- Fail fast with actionable config errors.
-
-Required config areas:
-
-- Repo/worktree roots.
-- Ingestion include and exclude globs.
-- Angular and federation hint paths.
-- Parser target roots by language.
-- Connector endpoint settings and auth refs.
-- Recipe manifest path.
-- Dashboard port and feature flags.
-
-## AST Tooling Baseline
-
-Required parser stack in v1:
-
-- TypeScript and JavaScript: `ts-morph` on top of `typescript`.
-- Angular templates and bindings: `@angular/compiler` template parser.
-- JSON and YAML: parser adapters with stable AST output for indexing.
-
-Angular template indexing requirements:
-
-- Parse template AST for:
-- component tags and selector usage
-- inputs/outputs and bindings
-- structural directives and control flow nodes
-- reference variables and event handlers
-
-Parser operation model:
-
-- Full AST/symbol index at MCP startup.
-- Incremental re-index on commit/change events.
-- Parser failures are logged as structured indexing events and never silently ignored.
-
-## Secrets
-
-- Local secrets in `.ai/auth/*`.
-- `.ai/auth` is gitignored.
-- Redact secret values and auth paths from logs and artifacts.
-
-## GraphOps and Team Sync
-
-Default sync workflow:
-
-1. Drop graph.
-2. Recreate constraints and indexes.
-3. Upsert from `.ai/graph/seed/**/*.jsonl`.
-
-Export workflow:
-
-- Export local changes into JSONL buckets for git merge and rebase.
-
-Conflict policy:
-
-- Last-write-wins.
-- Deterministic tiebreak:
-1. higher `version`
-2. newer `updated_at`
-3. lexical `updated_by`
-
-Policy and recipe seed row invariants:
-
-- Every policy/recipe row must include:
-- `id`
-- `type`
-- `version`
-- `updated_at`
-- `updated_by`
-- Upsert tooling must reject rows missing required versioning fields.
-- Version increments are enforced by import tooling for changed rows.
-
-Folders:
-
-- `.ai/graph/seed/` for canonical JSONL.
-- `.ai/graph/cypher/` for cypher scripts.
-- `.ai/graph/out/` for exported deltas.
-
-## Dashboard
-
-Runtime:
-
-- Express/HTTP listener.
-- Default port: `8722` (configurable, non-4200/non-8080).
-
-Endpoints:
-
-- `/health`
-- `/worktrees`
-- `/runs`
-- `/errors`
-- `/policies/pending`
-- `/metrics`
-- `/stream/events` (SSE)
-
-UI scope:
-
-- Current worktrees.
-- Run statuses.
-- Error stream.
-- Live log stream.
-- Pending corrections and policy candidates.
-- Rejection-code heatmaps and trend lines.
-- Top rejection signatures by strategy and module.
-- Retrieval/slicing failure hotspots for tuning.
-
-## Observability and Memory
-
-Log everything:
-
-- Input and output envelopes.
-- Retrieval traces.
-- Plan validation outcomes.
-- Execution outcomes.
-- Repeated actions and failures.
-- Strategy choices and switches.
-
-Memory pipeline:
-
-- Auto-create `PendingCorrection` and `PolicyCandidate`.
-- Human approval required before promotion.
-- Approved items upsert to graph policy/memory planes with provenance refs.
-
-### Promotion states
-
-- `pending`
-- `provisional`
-- `approved`
-- `rejected`
-- `expired`
-
-### Provisional auto-promotion lane
-
-Purpose:
-
-- Avoid approval bottlenecks for low-risk, high-signal updates.
-
-Eligibility (policy-configurable):
-
-- low-risk lexeme aliases
-- low-risk retrieval tuning metadata
-- non-destructive strategy hints
-
-Default flow:
-
-- Item remains `pending` for contest window (default 48h).
-- If uncontested, item may move to `provisional`.
-- `provisional` items are reversible, time-bound, and fully trace-linked.
-- `provisional` items auto-expire unless promoted to `approved`.
-
-Hard policy rule:
-
-- Durable policy rules and high-impact behavior changes still require explicit human approval.
-
-Mandatory episodic recipe usage event:
-
-- `recipeId`
-- `validatedParams`
-- `workId`
-- `runSessionId`
-- `planNodeId`
-- `artifactBundleRef`
-- `diffSummaryRef`
-- `validationOutcome`
-- `failureSignature?`
-
-## Safety and Guardrails
-
-- Worktree and `workId` scope enforcement on every operation.
-- Canonicalized path checks prevent traversal.
-- No wildcard symbol scopes in execution.
-- No side effects without explicit commit gate.
-- No arbitrary codemod args.
-- Recipe execution is `recipeId + validated params` only.
-- Secret and auth values must be redacted in all logs, traces, and artifacts.
+---
 
 ## Rejection Codes
 
-- `PLAN_MISSING_REQUIRED_FIELDS`
-- `PLAN_SCOPE_VIOLATION`
-- `PLAN_EVIDENCE_INSUFFICIENT`
-- `PLAN_NOT_ATOMIC`
-- `PLAN_VERIFICATION_WEAK`
-- `PLAN_STRATEGY_MISMATCH`
-- `PLAN_WEAK_MODEL_AMBIGUOUS`
-- `PLAN_FEDERATION_PROOF_MISSING`
-- `PLAN_ORIGIN_UNKNOWN`
-- `PLAN_POLICY_VIOLATION`
-- `PLAN_MISSING_CONTRACT_ANCHOR`
-- `PLAN_VALIDATION_CONFIDENCE_TOO_LOW`
-- `EXEC_SIDE_EFFECT_COLLISION`
-- `EXEC_UNGATED_SIDE_EFFECT`
-- `MEMORY_PROVISIONAL_EXPIRED`
-- `PACK_INSUFFICIENT`
-- `PACK_REQUIRED_ANCHOR_UNRESOLVED`
-
-## Acceptance Tests
-
-- Pre-plan scratch write succeeds only inside scoped scratch path.
-- Plan rejection is deterministic with precise codes.
-- Low-evidence guard path enforced correctly.
-- Weak executor cannot infer extra files or symbols.
-- `code_run` preflight and non-placeholder return checks enforced.
-- Repeated failures create pending correction candidates.
-- Approved corrections influence later strategy and policy choices.
-- Graph sync/export deterministic after rebase.
-
-Additional mandatory tests:
-
-- PlanGraph validator enforces exact kind-specific required fields.
-- Single-source guard path rejects when guard fields are absent.
-- Strategy reasons require evidence pointers, not free text only.
-- Feature plans reject when requirement evidence or code evidence category is missing.
-- Policy seed import rejects missing `version`/`updated_at`/`updated_by`.
-- Recipe usage emits episodic event with artifact and validation refs.
-
-## Implementation Sequence
-
-1. Contracts and config schema.
-2. Controller entrypoint and capability gating.
-3. Retrieval lanes and ContextPack builder.
-4. PlanGraph validator and rejection matrix.
-5. Scratch, `patch_apply`, and `code_run` execution layer.
-6. Observability and repeat/failure detectors.
-7. Memory promotion queue and graph integration.
-8. Connector adapters plus shared kernel.
-9. GraphOps sync/export commands.
-10. Dashboard HTTP plus SSE stream.
-11. Domain docs and tests hardening.
-
-## Strategy Enforcement Surface
-
-ContextSignature features are required inputs to strategy selection:
-
-- `hasJira`
-- `hasSwagger`
-- `mentionsAgGrid`
-- `touchesShadowDom`
-- `crossesFederationBoundary`
-- `migrationAdpDetected`
-- `contractAnchorPresent`
-- `testConfidenceLevel`
-
-Multiple strategy classes are mandatory in v1 (not optional):
-
-- `ui_aggrid_feature`
-- `api_contract_feature`
-- `migration_adp_to_sdf`
-- `debug_symptom_trace`
-
-### Feature strategy doctrine (applies to `ui_aggrid_feature` and `api_contract_feature`)
-
-Planning behavior requirements:
-
-- Maximize relevant context assembly before proposing edits.
-- For each planned touched file, include at least one few-shot or recipe-aligned example.
-- Evaluate active policies before final plan submission and include policy adjustments if needed.
-- Prefer in-repo examples and prevailing patterns over external documentation during initial design.
-- Validate intended patterns by prevalence in the current codebase before adopting them.
-
-Assumption testing requirements:
-
-- At each major planning step, explicitly test assumptions against repository evidence.
-- If a pattern appears sparse or inconsistent, mark low confidence and escalate instead of normalizing it.
-- Unresolved assumptions must produce explicit escalation requirements in PlanGraph.
-
-Architecture invariants for feature plans:
-
-- Preserve clear separation of `controller`, `service`, and `data` layers.
-- Reject feature plans that collapse these layers without explicit policy-backed justification.
-
-Verification requirements:
-
-- Include test authoring in the plan for impacted behavior.
-- Include end-to-end validation path in plan verification hooks before completion state.
-
-### Deep-quality variant (refactor-heavy or high-risk feature paths)
-
-When time and scope allow, planners should use this stricter sequence:
+| Code | Domain |
+|------|--------|
+| `PLAN_MISSING_REQUIRED_FIELDS` | Plan validation |
+| `PLAN_SCOPE_VIOLATION` | Scope/capability gating |
+| `PLAN_EVIDENCE_INSUFFICIENT` | Evidence policy |
+| `PLAN_NOT_ATOMIC` | Atomicity rules |
+| `PLAN_VERIFICATION_WEAK` | Verification hooks |
+| `PLAN_STRATEGY_MISMATCH` | Strategy compliance |
+| `PLAN_WEAK_MODEL_AMBIGUOUS` | Weak-model handoff |
+| `PLAN_FEDERATION_PROOF_MISSING` | Federation proof chains |
+| `PLAN_ORIGIN_UNKNOWN` | ag-Grid origin chain |
+| `PLAN_POLICY_VIOLATION` | Policy rule violation |
+| `PLAN_MISSING_CONTRACT_ANCHOR` | Contract anchor missing |
+| `PLAN_VALIDATION_CONFIDENCE_TOO_LOW` | Confidence threshold |
+| `EXEC_SIDE_EFFECT_COLLISION` | Collision guard |
+| `EXEC_UNGATED_SIDE_EFFECT` | Missing commit gate |
+| `MEMORY_PROVISIONAL_EXPIRED` | Expired provisional memory |
+| `PACK_INSUFFICIENT` | Context pack assembly failure |
+| `PACK_REQUIRED_ANCHOR_UNRESOLVED` | Anchor resolution failure |
 
-1. Run blast-radius analysis first:
-- upstream dependency impact
-- downstream consumer impact
-- integration boundary impact (host/remote, shared contracts)
-2. Confirm baseline test coverage:
-- e2e coverage for target component or flow
-- unit coverage for touched services/data transforms
-3. If baseline tests are missing:
-- create baseline tests first (before behavior-changing edits)
-- prefer codemod-assisted scaffolding where available
-4. Establish baseline truth:
-- run tests and require pass state
-- capture Cypress screenshot artifact for current behavior
-- ensure stable e2e selectors exist for target flow
-5. Apply feature/refactor changes only after baseline is green.
-6. Re-run verification and compare against baseline artifacts.
+---
 
-Non-negotiable hygiene in this variant:
+## Budget
 
-- No magic strings in UI/domain logic.
-- i18n-compliant text handling for user-facing copy.
-- Selector hygiene for durable e2e execution.
-- Thorough repository-grounded research at each major step.
+| Constant | Value |
+|----------|-------|
+| `DEFAULT_MAX_TOKENS` | 100,000 |
+| `DEFAULT_BUDGET_THRESHOLD_PERCENT` | 0.6 (60%) |
 
-### Cypress + Accessibility doctrine (LLM-assisted)
+Token cost estimated from serialized request size (÷4). Budget-safe verbs bypass the gate.
 
-Testing strategy expectations:
+---
 
-- Cypress suites may be LLM-assisted for broad input coverage and edge cases.
-- Accessibility verification targets WCAG AA compliance as far as practical.
-- Generated tests must still be deterministic and repository-pattern aligned.
+## Config Portability
 
-SDF component caveat:
+Layered files merged at startup:
+1. `.ai/config/schema.json`
+2. `.ai/config/base.json`
+3. `.ai/config/repo.json`
+4. `.ai/config/env.local.json` (gitignored)
 
-- Many `sdf-*` components include built-in semantics/attributes.
-- Avoid redundant or counterproductive labeling when component contracts already satisfy accessibility intent.
-- Prefer component API contract evidence over ad hoc markup assumptions.
+Required config: repo/worktree roots, ingestion globs, Angular/federation hints, parser targets, connector settings, auth refs, recipe manifest path, dashboard port, feature flags.
 
-CDP-aware validation path:
+---
 
-- If CDP capability is enabled, use browser inspection to validate runtime accessibility and interaction behavior.
-- If CDP is unavailable, validate using:
-- component library API contracts
-- structural evidence from templates
-- repository few-shot examples
+## AST Tooling
 
-Shadow DOM rule:
+| Parser | Target |
+|--------|--------|
+| `ts-morph` (typescript) | TypeScript/JavaScript symbol extraction |
+| `@angular/compiler` | Angular template parsing (tags, bindings, directives) |
+| Native JSON/YAML | Config file indexing |
 
-- For Shadow DOM/Shadow Root interactions, Cypress examples from the repository are the primary evidence source.
-- Plans touching Shadow DOM must reference shadow-capable Cypress patterns or recipes.
+Full AST/symbol index at startup via `IndexingService.rebuild()`. Parser failures logged as structured events.
 
-Strategy selection must output:
+---
 
-- `knowledgeStrategyId`
-- structured `knowledgeStrategyReasons[]` with evidence refs
-- required proof obligations for this strategy
+## GraphOps and Team Sync
 
-Hard strategy switch triggers:
+### Sync Workflow
+1. Drop graph
+2. Recreate constraints/indexes
+3. Upsert from `.ai/graph/seed/**/*.jsonl`
 
-- `plan_rejected`
-- `policy_conflict`
-- `repeated_failure_threshold`
-- `repeated_action_threshold`
-- `missing_required_proof_chain`
+### Seed Row Invariants
+Every policy/recipe row: `id`, `type`, `version`, `updated_at`, `updated_by`.
 
-After trigger:
+### Folders
+- `.ai/graph/seed/` — canonical JSONL
+- `.ai/graph/cypher/` — Cypher scripts
+- `.ai/graph/out/` — exported deltas
 
-- Strategy switch is mandatory.
-- Next attempt must reference new strategy ID or explicit escalation evidence.
-- Regeneration without new pack, new strategy, or resolved missingness is rejected.
+---
 
-## ContextPack Readiness Invariants
+## Safety
 
-A ContextPack is not ready unless all required invariants pass:
+- Worktree + `workId` scope on every operation.
+- Canonicalized path checks prevent traversal.
+- No wildcard symbol scopes.
+- No side effects without commit gate.
+- No arbitrary codemod args — `recipeId + validated params` only.
+- Secrets redacted from logs/artifacts.
 
-- Snapshot purity.
-- At least one entrypoint anchor.
-- At least one definition anchor.
-- Active policy set resolved.
-- Validation plan present.
-- Missingness/conflicts present.
+---
 
-UI and federated work invariants:
+## Test Harness
 
-- Ag-grid origin proof chain present when UI task involves tables:
-- `Table -> ColumnDef -> CellRenderer -> NavTrigger -> Route -> Component`
-- Federation proof chain present when boundary is crossed:
-- `Host route -> mapping -> expose -> remote module -> destination`
+62 tests across 8 sections (58 PASS, 0 FAIL, 4 SKIP):
 
-If required proof chain cannot be resolved in current worktree scope:
+| Section | Coverage |
+|---------|----------|
+| 1. Transport Layer | Initialize, tools/list, ping, unknown method, wrong tool, missing verb |
+| 2. Pre-Plan Verbs | All 14 pre-plan verbs with missing field denials |
+| 3. Plan Lifecycle | Submit invalid/valid plans, state transitions |
+| 4. Post-Plan Mutations | Patch, code_run, side_effect denials; recipe execution |
+| 5. Session & Response | Envelope structure, budget, strategy, sub-agent hints |
+| 6. Mutation Deny Paths | Pre-plan mutation denials with actionable errors |
+| 7. Verb Descriptions | verbDescriptions, suggestedAction, escalate description |
+| 8. Memory System | signal_task_complete, retrospective, friction digest, memory status |
 
-- Mark pack as insufficient.
-- Emit escalation requirement before PlanGraph acceptance.
+Run: `node test-mcp-harness.mjs` from repo root.
 
-Pack insufficiency handling contract:
+---
 
-- Return `outcome = "pack_insufficient"`.
-- Include `missingAnchors[]` with:
-- `anchorType`
-- `requiredBy`
-- `whyRequired`
-- `attemptedSources[]`
-- `confidence`
-- Include `escalationPlan[]` typed actions:
-- `artifact_fetch`
-- `graph_expand`
-- `scope_expand`
-- `pack_rebuild`
-- `strategy_switch`
-- Include `blockedCommands[]` that remain unavailable until insufficiency is resolved.
-- Include `nextRequiredState` for the recovery path.
+## Non-Goals for v1
 
-## Worktree and Federation Scope Rule
-
-Default scope model:
-
-- One `workId` maps to one active worktree.
-
-Cross-boundary behavior:
-
-- If host and required remote are not both available in current scope, planner must emit escalation.
-- PlanGraph cannot pass with unresolved federation proof obligations.
-
-## `code_run` Reproducibility Invariant
-
-Every `code_run` must:
-
-- write durable outputs into per-node artifact bundle
-- return a pointer/summary to produced artifacts
-- avoid returning primary results only in-memory
-
-Non-replayable `code_run` outputs are rejected.
-
-## Retrieval Debug Digest
-
-PlanGraph keeps `retrievalConfigId` optional in v1.
-
-ContextPack must carry:
-
-- retrieval config digest
-- query trace refs
-- scoring rationale refs
-
-This preserves debuggability without expanding Day-0 PlanGraph envelope.
-
-## Non-goals for v1
-
-- Full CDP runtime execution.
+- Full CDP runtime execution (contracts defined, disabled behind flag).
 - Multi-agent parallel execution orchestration.
 - Cloud-hosted secrets or remote graph services.
-
-## Defaults
-
-- Local-only operation.
-- File-based local auth under `.ai/auth`.
-- Local Neo4j.
-- JSONL seed/export team sync.
-- Drop plus upsert as baseline graph sync strategy.
+- Embedding-based retrieval.

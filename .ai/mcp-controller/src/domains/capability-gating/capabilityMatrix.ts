@@ -9,7 +9,7 @@ export function capabilitiesForState(state: RunState): string[] {
     return ["list_available_verbs", "get_original_prompt", "request_evidence_guidance"];
   }
   if (state === "FAILED" || state === "COMPLETED") {
-    return ["list_available_verbs", "get_original_prompt"];
+    return ["list_available_verbs", "get_original_prompt", "signal_task_complete"];
   }
   return [...PRE_PLAN_CAPABILITIES];
 }

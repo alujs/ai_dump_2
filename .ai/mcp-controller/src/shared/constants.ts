@@ -17,7 +17,8 @@ export const PRE_PLAN_CAPABILITIES = [
   "get_original_prompt",
   "write_scratch_file",
   "submit_execution_plan",
-  "request_evidence_guidance"
+  "request_evidence_guidance",
+  "signal_task_complete"
 ] as const;
 
 export const POST_PLAN_CAPABILITIES = [

@@ -2,6 +2,7 @@ import type { RunState } from "../../../contracts/controller";
 import type { PlanGraphDocument } from "../../../contracts/planGraph";
 import type { VerbResult, SessionState } from "../types";
 import { validatePlanGraph } from "../../plan-graph/planGraphValidator";
+import type { MemoryService } from "../../memory/memoryService";
 import { loadScopeAllowlist } from "../../worktree-scope/worktreeScopeService";
 import { repoSnapshotId } from "../../../infrastructure/git/repoSnapshot";
 import { normalizeSafePath, scratchRoot } from "../../../shared/fsPaths";
@@ -11,7 +12,8 @@ import { validatePlanWorktreeRoot } from "../turnHelpers";
 export async function handleSubmitPlan(
   args: Record<string, unknown> | undefined,
   session: SessionState,
-  currentState: RunState
+  currentState: RunState,
+  memoryService?: MemoryService,
 ): Promise<VerbResult> {
   const denyReasons: string[] = [];
   const result: Record<string, unknown> = {};
@@ -24,11 +26,29 @@ export async function handleSubmitPlan(
     return { result, denyReasons, stateOverride: currentState };
   }
 
-  const validation = validatePlanGraph(planGraph);
+  // Query active memories for plan rule validation [REF:MEMORY-PLAN-RULES]
+  let activeMemories: import("../../../contracts/memoryRecord").MemoryRecord[] = [];
+  if (memoryService) {
+    try {
+      // Derive anchor IDs from plan's target files
+      const targetFiles = planGraph.nodes
+        .filter((n): n is import("../../../contracts/planGraph").ChangePlanNode => n.kind === "change")
+        .map((n) => n.targetFile);
+      const anchorIds = [...new Set(targetFiles.map((f) => {
+        const parts = f.replace(/\\/g, "/").split("/");
+        return parts.length > 1 ? `anchor:${parts.slice(0, 2).join("/")}` : `anchor:${parts[0]}`;
+      }))];
+      activeMemories = await memoryService.findActiveForAnchors(anchorIds);
+    } catch {
+      // Memory query failures are non-fatal
+    }
+  }
+
+  const validation = validatePlanGraph(planGraph, activeMemories);
   if (!validation.ok) {
     denyReasons.push(...validation.rejectionCodes);
     result.error = "Plan graph validation failed. See result.validationDiagnostics for the specific issues to fix.";
-    result.validationDiagnostics = validation.diagnostics ?? validation.rejectionCodes;
+    result.validationDiagnostics = validation.memoryRuleResults ?? validation.rejectionCodes;
     return { result, denyReasons, stateOverride: "PLAN_REQUIRED" };
   }
 

@@ -1,13 +1,22 @@
 import type { PlanGraphDocument, PlanNode, ChangePlanNode } from "../../contracts/planGraph";
+import type { MemoryRecord } from "../../contracts/memoryRecord";
 import { validateChangeEvidencePolicy } from "../evidence-policy/evidencePolicyService";
 import { isSupportedAstCodemodId } from "../patch-exec/astCodemodCatalog";
 
 export interface ValidationResult {
   ok: boolean;
   rejectionCodes: string[];
+  memoryRuleResults?: MemoryRuleResult[];
 }
 
-export function validatePlanGraph(plan: PlanGraphDocument): ValidationResult {
+export interface MemoryRuleResult {
+  memoryId: string;
+  condition: string;
+  satisfied: boolean;
+  denyCode: string;
+}
+
+export function validatePlanGraph(plan: PlanGraphDocument, activeMemories?: MemoryRecord[]): ValidationResult {
   const rejectionCodes: string[] = [];
 
   validateEnvelope(plan, rejectionCodes);
@@ -15,9 +24,18 @@ export function validatePlanGraph(plan: PlanGraphDocument): ValidationResult {
   validateStrategyReasons(plan, rejectionCodes);
   validateNodes(plan.nodes, plan.evidencePolicy, graphFacts, rejectionCodes);
 
+  // Apply memory-carried plan rules [REF:MEMORY-PLAN-RULES]
+  const memoryRuleResults = validateMemoryRules(plan, activeMemories ?? []);
+  for (const result of memoryRuleResults) {
+    if (!result.satisfied) {
+      rejectionCodes.push(result.denyCode);
+    }
+  }
+
   return {
     ok: rejectionCodes.length === 0,
-    rejectionCodes: dedupe(rejectionCodes)
+    rejectionCodes: dedupe(rejectionCodes),
+    memoryRuleResults: memoryRuleResults.length > 0 ? memoryRuleResults : undefined,
   };
 }
 
@@ -280,6 +298,54 @@ function validateChangeNode(
       rejectionCodes.push("PLAN_EVIDENCE_INSUFFICIENT");
     }
   }
+}
+
+/* ── Memory-based plan rule validation ───────────────────── */
+
+function validateMemoryRules(plan: PlanGraphDocument, memories: MemoryRecord[]): MemoryRuleResult[] {
+  const results: MemoryRuleResult[] = [];
+
+  for (const memory of memories) {
+    if (memory.enforcementType !== "plan_rule" || !memory.planRule) continue;
+    if (memory.state !== "approved" && memory.state !== "provisional") continue;
+
+    const rule = memory.planRule;
+    const satisfied = checkPlanRule(plan, rule);
+
+    results.push({
+      memoryId: memory.id,
+      condition: rule.condition,
+      satisfied,
+      denyCode: rule.denyCode,
+    });
+  }
+
+  return results;
+}
+
+function checkPlanRule(plan: PlanGraphDocument, rule: import("../../contracts/memoryRecord").PlanRule): boolean {
+  // For each required step, check if a matching node exists in the plan
+  for (const required of rule.requiredSteps) {
+    const hasMatchingNode = plan.nodes.some((node) => {
+      if (node.kind !== required.kind) return false;
+      if (!required.targetPattern) return true;
+
+      // Match target pattern against node fields
+      if (node.kind === "change") {
+        const changeNode = node as ChangePlanNode;
+        return changeNode.targetFile.includes(required.targetPattern)
+          || changeNode.targetSymbols.some((s) => s.includes(required.targetPattern!));
+      }
+      if (node.kind === "validate") {
+        return node.verificationHooks.some((h) => h.includes(required.targetPattern!));
+      }
+      return false;
+    });
+
+    if (!hasMatchingNode) return false;
+  }
+
+  return true;
 }
 
 function validateCodemodCitations(node: ChangePlanNode, rejectionCodes: string[]): void {

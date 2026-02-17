@@ -2,6 +2,8 @@ import path from "node:path";
 import { readdirSync, statSync } from "node:fs";
 import type { VerbResult, SessionState } from "../types";
 import type { IndexingService } from "../../indexing/indexingService";
+import type { MemoryService } from "../../memory/memoryService";
+import { MEMORY_CONFIG } from "../../memory/config";
 import { readText } from "../../../shared/fileStore";
 import { normalizeSafePath, resolveTargetRepoRoot } from "../../../shared/fsPaths";
 import {
@@ -171,7 +173,8 @@ export async function handleListDir(
 
 export async function handleReadNeighbors(
   args: Record<string, unknown> | undefined,
-  indexing: IndexingService | null
+  indexing: IndexingService | null,
+  memoryService?: MemoryService,
 ): Promise<VerbResult> {
   const denyReasons: string[] = [];
   const result: Record<string, unknown> = {};
@@ -199,5 +202,38 @@ export async function handleReadNeighbors(
   const lexicalMatches = indexing.searchLexical(lexicalQuery, limit);
 
   result.readNeighbors = { anchor: symbol || targetFile || query, symbolMatches, lexicalMatches };
+
+  /* ── Few-shot injection from active memories ──────────── */
+  if (memoryService && MEMORY_CONFIG.enableFewShotInjection) {
+    try {
+      const filePaths = [targetFile, ...symbolMatches.map((m) => m.filePath)].filter(Boolean);
+      const { resolveAnchorsForFiles, expandAnchorHierarchy, scanAnchors } = await import("../../memory/anchorSeeder");
+      const { resolveRepoRoot } = await import("../../../shared/fsPaths");
+      const repoRoot = resolveRepoRoot();
+      const { anchors: allAnchors } = await scanAnchors(repoRoot);
+      const anchorIds = resolveAnchorsForFiles(filePaths, allAnchors);
+      const expandedIds = expandAnchorHierarchy(anchorIds, allAnchors);
+      if (expandedIds.length > 0) {
+        const activeMemories = await memoryService.findActiveForAnchors(expandedIds);
+        const fewShotExamples = activeMemories
+          .filter((m) => m.enforcementType === "few_shot" && m.fewShot)
+          .map((m) => ({
+            memoryId: m.id,
+            instruction: m.fewShot!.instruction,
+            before: m.fewShot!.before,
+            after: m.fewShot!.after,
+            antiPattern: m.fewShot!.antiPattern,
+            whyWrong: m.fewShot!.whyWrong,
+            scaffolded: m.fewShot!.scaffolded ?? false,
+          }));
+        if (fewShotExamples.length > 0) {
+          result.fewShotExamples = fewShotExamples;
+        }
+      }
+    } catch {
+      // Few-shot injection is non-fatal
+    }
+  }
+
   return { result, denyReasons };
 }

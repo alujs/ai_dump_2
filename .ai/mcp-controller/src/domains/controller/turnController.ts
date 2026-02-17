@@ -2,7 +2,7 @@ import { capabilitiesForState } from "../capability-gating/capabilityMatrix";
 import { createContextPack } from "../context-pack/contextPackService";
 import { collectRetrievalLanes } from "../context-pack/retrievalLanes";
 import { ConnectorRegistry } from "../connectors/connectorRegistry";
-import { MemoryPromotionService } from "../memory-promotion/memoryPromotionService";
+import { MemoryService } from "../memory/memoryService";
 import { EventStore } from "../observability/eventStore";
 import { CollisionGuard } from "../patch-exec/collisionGuard";
 import { listPatchApplyOptions } from "../patch-exec/patchExecService";
@@ -27,16 +27,17 @@ import { handlePatchApply, handleCodeRun, handleSideEffect } from "./handlers/mu
 import { handleFetchJira, handleFetchSwagger } from "./handlers/connectorHandlers";
 import { handleRunRecipe } from "./handlers/recipeHandler";
 import { handleEscalate } from "./handlers/escalateHandler";
+import { handleSignalTaskComplete } from "./handlers/retrospectiveHandler";
 
-/* ── Verbs that benefit from full context pack + retrieval ── */
+/* ── Verbs that require full context pack + retrieval ── */
 const CONTEXT_PACK_VERBS = new Set([
-  "submit_execution_plan", "write_scratch_file",
+  "submit_execution_plan",
 ]);
 
 export class TurnController {
   private readonly sessions = new Map<string, SessionState>();
   private readonly collisionGuard = new CollisionGuard();
-  private readonly memoryPromotion: MemoryPromotionService;
+  private readonly memoryService: MemoryService;
   private readonly recipes: RecipeRegistry;
   private readonly proofChainBuilder: ProofChainBuilder | null;
 
@@ -44,11 +45,11 @@ export class TurnController {
     private readonly eventStore: EventStore,
     private readonly connectors?: ConnectorRegistry,
     private readonly indexing: IndexingService | null = null,
-    memoryPromotion?: MemoryPromotionService,
+    memoryService?: MemoryService,
     recipes?: RecipeRegistry,
     private readonly neo4jConfig?: { uri: string; username: string; password: string; database: string },
   ) {
-    this.memoryPromotion = memoryPromotion ?? new MemoryPromotionService();
+    this.memoryService = memoryService ?? new MemoryService();
     this.recipes = recipes ?? new RecipeRegistry();
     this.proofChainBuilder = neo4jConfig
       ? new ProofChainBuilder({ neo4j: neo4jConfig }, indexing)
@@ -141,6 +142,19 @@ export class TurnController {
       // Extract raw Jira ticket from session artifacts [REF:CP-SECTIONS]
       const rawJiraTicket = extractRawJiraTicket(session.artifacts);
 
+      // Query active memory records for domains in scope [REF:MEMORY-INJECTION]
+      const scopeFiles = listAllowedFiles(workId, session.scopeAllowlist, worktreeRoot());
+      const activeMemories = await this.memoryService.findActiveForAnchors(
+        scopeFiles.slice(0, 50).map((f) => {
+          // Derive anchor IDs from file paths (folder-based)
+          const parts = f.replace(/\\/g, "/").split("/");
+          return parts.length > 1 ? `anchor:${parts.slice(0, 2).join("/")}` : `anchor:${parts[0]}`;
+        })
+      );
+
+      // Ingest any human override files [REF:HUMAN-INTERVENTION]
+      await this.memoryService.ingestOverrideFiles();
+
       const packOutput = await createContextPack({
         runSessionId, workId, originalPrompt,
         strategyId: strategy.strategyId,
@@ -167,6 +181,7 @@ export class TurnController {
         rawJiraTicket,
         agGridProofChain,
         federationProofChain,
+        activeMemories,
       });
 
       contextPackRef = packOutput.contextPackRef;
@@ -212,7 +227,7 @@ export class TurnController {
 
     /* ── Verb dispatch ────────────────────────────────────── */
     const state = budgetStatus.blocked ? "BLOCKED_BUDGET" : session.state;
-    const verbResult = await this.dispatchVerb(request.verb, request.args, session, state, collisionScopeKey, workId, worktreeRoot());
+    const verbResult = await this.dispatchVerb(request.verb, request.args, session, state, collisionScopeKey, workId, worktreeRoot(), this.memoryService);
 
     const mergedResult: Record<string, unknown> = { ...verbResult.result };
     if (contextPackRef) mergedResult.contextPackRef = contextPackRef;
@@ -244,7 +259,7 @@ export class TurnController {
   }
 
   async listMemoryPromotions(): Promise<Array<Record<string, unknown>>> {
-    return (await this.memoryPromotion.list()).map((item) => ({ ...item }));
+    return (await this.memoryService.listAll()).map((item) => ({ ...item } as Record<string, unknown>));
   }
 
   /* ── Private: verb dispatch ────────────────────────────── */
@@ -256,11 +271,12 @@ export class TurnController {
     state: RunState,
     collisionScopeKey: string,
     workId: string,
-    worktreeRoot: string
+    worktreeRoot: string,
+    memoryService?: MemoryService,
   ): Promise<VerbResult> {
     switch (verb) {
       case "submit_execution_plan":
-        return handleSubmitPlan(args, session, state);
+        return handleSubmitPlan(args, session, state, memoryService);
       case "write_scratch_file":
         return handleWriteTmp(workId, args);
       case "read_file_lines":
@@ -270,7 +286,7 @@ export class TurnController {
       case "search_codebase_text":
         return handleGrepLexeme(args, this.indexing);
       case "trace_symbol_graph":
-        return handleReadNeighbors(args, this.indexing);
+        return handleReadNeighbors(args, this.indexing, this.memoryService);
       case "list_scoped_files":
         return { result: { allowedFiles: listAllowedFiles(workId, session.scopeAllowlist, worktreeRoot) }, denyReasons: [] };
       case "list_directory_contents":
@@ -291,6 +307,8 @@ export class TurnController {
         return { result: { originalPrompt: session.originalPrompt }, denyReasons: [] };
       case "run_automation_recipe":
         return handleRunRecipe(args, session, this.eventStore, this.recipes);
+      case "signal_task_complete":
+        return handleSignalTaskComplete(args, session, this.eventStore, this.memoryService);
       case "list_available_verbs": {
         const available = capabilitiesForState(state);
         return { result: { available, verbDescriptions: verbDescriptionsForCapabilities(available) }, denyReasons: [] };
@@ -390,22 +408,44 @@ export class TurnController {
           runSessionId: session.runSessionId, workId: session.workId, agentId: session.agentId,
           payload: { rejectionCode: code, count: session.rejectionCounts[code] },
         });
-        await this.memoryPromotion.createPending({
-          kind: "strategy_hint", traceRef: response.traceRef,
-          reason: `Repeated rejection code ${code}`,
-          metadata: { rejectionCode: code, rejectionCount: session.rejectionCounts[code], strategy: response.knowledgeStrategy.strategyId },
+
+        // Derive domain anchors from the session's scope
+        const domainAnchorIds = session.scopeAllowlist
+          ? Object.keys(session.scopeAllowlist).slice(0, 5).map((f) => {
+              const parts = f.replace(/\\/g, "/").split("/");
+              return parts.length > 1 ? `anchor:${parts.slice(0, 2).join("/")}` : `anchor:${parts[0]}`;
+            })
+          : [];
+
+        await this.memoryService.createFromFriction({
+          trigger: "rejection_pattern",
+          phase: response.state === "EXECUTION_ENABLED" ? "execution" : "planning",
+          domainAnchorIds,
+          rejectionCodes: [code],
+          originStrategyId: response.knowledgeStrategy.strategyId,
+          enforcementType: "strategy_signal",
+          strategySignal: {
+            featureFlag: `friction_${code.toLowerCase()}`,
+            value: true,
+            reason: `Repeated rejection code ${code} (${session.rejectionCounts[code]}x)`,
+          },
+          traceRef: response.traceRef,
+          sessionId: session.runSessionId,
+          workId: session.workId,
+          agentId: session.agentId,
+          metadata: { rejectionCode: code, rejectionCount: session.rejectionCounts[code] },
         });
       }
     }
   }
 
   private async runMemoryPromotionLane(session: SessionState): Promise<void> {
-    const transitioned = await this.memoryPromotion.runAutoPromotion();
+    const transitioned = await this.memoryService.runAutoPromotion();
     for (const item of transitioned) {
       await this.eventStore.append({
         ts: new Date().toISOString(), type: "memory_promotion_transition",
         runSessionId: session.runSessionId, workId: session.workId, agentId: session.agentId,
-        payload: { id: item.id, kind: item.kind, state: item.state, traceRef: item.traceRef },
+        payload: { id: item.id, enforcementType: item.enforcementType, state: item.state, traceRef: item.traceRef },
       });
     }
   }

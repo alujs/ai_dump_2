@@ -41,7 +41,7 @@ export async function bootstrapRuntime(options: RuntimeBootstrapOptions = {}): P
     events,
     connectors,
     indexing,
-    undefined, // memoryPromotion — use default
+    undefined, // memoryService — use default
     undefined, // recipes — use default
     config.neo4j, // pass Neo4j config for proof chain builder [REF:PROOF-CHAINS]
   );

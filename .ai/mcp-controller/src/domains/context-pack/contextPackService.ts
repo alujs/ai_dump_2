@@ -4,6 +4,7 @@ import { PACK_BLOCKED_COMMANDS, SCHEMA_VERSION } from "../../shared/constants";
 import { contextRoot } from "../../shared/fsPaths";
 import { writeText } from "../../shared/fileStore";
 import type { PackInsufficiency } from "../../contracts/controller";
+import type { MemoryRecord } from "../../contracts/memoryRecord";
 import type { RetrievalLaneResult } from "./retrievalLanes";
 
 export interface ContextPackInput {
@@ -37,6 +38,8 @@ export interface ContextPackInput {
   agGridProofChain?: { chain: Array<{ kind: string; id: string; label: string; filePath?: string; source: string }>; complete: boolean; missingLinks: string[]; notes: string[] };
   /** Proof chain results if already computed (federation chain) */
   federationProofChain?: { chain: Array<{ kind: string; id: string; label: string; filePath?: string; source: string }>; complete: boolean; missingLinks: string[]; notes: string[] };
+  /** Active memory records for domains in scope — injected into the pack */
+  activeMemories?: MemoryRecord[];
 }
 
 export interface ContextPackOutput {
@@ -142,7 +145,20 @@ export async function createContextPack(input: ContextPackInput): Promise<Contex
     proofChainTrace: {
       agGridOriginChain: input.agGridProofChain ?? null,
       federationChain: input.federationProofChain ?? null,
-    }
+    },
+    activeMemories: (input.activeMemories ?? []).map((m) => ({
+      id: m.id,
+      enforcementType: m.enforcementType,
+      trigger: m.trigger,
+      phase: m.phase,
+      state: m.state,
+      domainAnchorIds: m.domainAnchorIds,
+      rejectionCodes: m.rejectionCodes,
+      fewShot: m.fewShot ?? null,
+      planRule: m.planRule ?? null,
+      strategySignal: m.strategySignal ?? null,
+      note: m.note ?? null,
+    }))
   };
 
   const hashSource = JSON.stringify(payloadBase);

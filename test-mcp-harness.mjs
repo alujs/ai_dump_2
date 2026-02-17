@@ -11,6 +11,8 @@
  *                       write_scratch_file, fetch_jira_ticket,
  *                       fetch_api_spec, submit_execution_plan,
  *                       request_evidence_guidance
+ * Memory system:        signal_task_complete → retrospective digest,
+ *                       friction heatmap, memory status, suggestions
  * Deny paths:           missing fields, scope violations, unknown verbs,
  *                       budget gate, actionable error messages
  * Plan lifecycle:       submit invalid → submit valid → state transition
@@ -1057,6 +1059,114 @@ async function main() {
     log("ERROR", err.stack ?? err.message);
     failed++;
   }
+
+  // SECTION 8: MEMORY SYSTEM & SIGNAL_TASK_COMPLETE
+  try {
+    log("SECTION", "═══ 8. MEMORY SYSTEM & SIGNAL_TASK_COMPLETE ═══");
+
+    // 8.1 signal_task_complete in PLAN_REQUIRED state (allowed — it's in PRE_PLAN_CAPABILITIES)
+    log("TEST", "8.1 signal_task_complete (basic call)");
+    const stcRes = await toolCallSession("signal_task_complete", {
+      args: {
+        summary: "Test session completed successfully",
+        lessonsLearned: ["Always check null fields"]
+      }
+    });
+    const stc = sc(stcRes);
+    const retro = stc?.result?.retrospective;
+    logResult("8.1 signal_task_complete:basic",
+      stc?.denyReasons?.length === 0 &&
+      retro != null &&
+      retro.sessionSummary != null,
+      `hasDeny=${stc?.denyReasons?.length > 0}, hasRetro=${retro != null}, hasSummary=${retro?.sessionSummary != null}`
+    );
+
+    // 8.2 retrospective contains session summary
+    log("TEST", "8.2 retrospective session summary");
+    const summary = retro?.sessionSummary;
+    logResult("8.2 retrospective:session_summary",
+      summary?.runSessionId === SESSION &&
+      summary?.workId === WORK &&
+      summary?.agentId === AGENT &&
+      typeof summary?.totalTurns === "number" &&
+      summary?.agentProvidedSummary === "Test session completed successfully",
+      `session=${summary?.runSessionId}, turns=${summary?.totalTurns}, summary="${summary?.agentProvidedSummary?.substring(0, 40)}"`
+    );
+
+    // 8.3 retrospective contains friction digest
+    log("TEST", "8.3 retrospective friction digest");
+    const digest = retro?.frictionDigest;
+    logResult("8.3 retrospective:friction_digest",
+      digest != null &&
+      typeof digest.rejectionHeatmap === "object" &&
+      Array.isArray(digest.topSignatures) &&
+      Array.isArray(digest.retrievalHotspots),
+      `hasHeatmap=${typeof digest?.rejectionHeatmap === "object"}, sigs=${digest?.topSignatures?.length}, hotspots=${digest?.retrievalHotspots?.length}`
+    );
+
+    // 8.4 retrospective contains memory status
+    log("TEST", "8.4 retrospective memory status");
+    const memStatus = retro?.memoryStatus;
+    logResult("8.4 retrospective:memory_status",
+      memStatus != null &&
+      Array.isArray(memStatus.pending) &&
+      Array.isArray(memStatus.provisional) &&
+      typeof memStatus.approvedCount === "number",
+      `pending=${memStatus?.pending?.length}, provisional=${memStatus?.provisional?.length}, approved=${memStatus?.approvedCount}`
+    );
+
+    // 8.5 retrospective contains suggestions
+    log("TEST", "8.5 retrospective suggestions");
+    logResult("8.5 retrospective:suggestions",
+      Array.isArray(retro?.suggestions) && retro.suggestions.length > 0,
+      `suggestions=${retro?.suggestions?.length}, first="${retro?.suggestions?.[0]?.substring(0, 60)}..."`
+    );
+
+    // 8.6 state transitions to COMPLETED
+    log("TEST", "8.6 state after signal_task_complete");
+    logResult("8.6 state:completed",
+      stc?.state === "COMPLETED",
+      `state=${stc?.state}`
+    );
+
+    // 8.7 signal_task_complete is budget-safe (should work even if budget exceeded)
+    log("TEST", "8.7 signal_task_complete is budget-safe");
+    logResult("8.7 budget_safe",
+      stc?.budgetStatus != null && stc?.denyReasons?.length === 0,
+      `budgetBlocked=${stc?.budgetStatus?.blocked}, deny=${stc?.denyReasons?.length}`
+    );
+
+    // 8.8 signal_task_complete in verbCatalog
+    log("TEST", "8.8 signal_task_complete in verb descriptions");
+    const vd = stc?.verbDescriptions;
+    logResult("8.8 verb_catalog:signal_task_complete",
+      vd?.signal_task_complete != null &&
+      typeof vd?.signal_task_complete?.description === "string",
+      `hasDesc=${vd?.signal_task_complete?.description != null}`
+    );
+
+    // 8.9 lessonsLearned passed through
+    log("TEST", "8.9 lessons learned in retrospective");
+    logResult("8.9 lessons_learned",
+      summary?.lessonsLearned != null &&
+      Array.isArray(summary.lessonsLearned) &&
+      summary.lessonsLearned[0] === "Always check null fields",
+      `lessons=${JSON.stringify(summary?.lessonsLearned)}`
+    );
+
+    // 8.10 message field present
+    log("TEST", "8.10 retrospective message");
+    logResult("8.10 retrospective:message",
+      typeof stc?.result?.message === "string" &&
+      stc.result.message.includes("retrospective"),
+      `msg="${stc?.result?.message?.substring(0, 60)}..."`
+    );
+
+  } catch (err) {
+    log("ERROR", err.stack ?? err.message);
+    failed++;
+  }
+
   console.log("\n" + "=".repeat(70));
   console.log("                    COMPREHENSIVE TEST RESULTS");
   console.log("=".repeat(70));
