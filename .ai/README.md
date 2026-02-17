@@ -1,165 +1,292 @@
-# MCP Colocation Layout
+# .ai — MCP Controller (Drop-In)
 
-Everything required for the MCP runtime is under this `.ai/` folder.
+This folder is a self-contained MCP controller designed to be dropped into an Angular 14+ repository. Once installed, it gives VS Code Copilot (or any MCP-compatible agent) policy-gated, evidence-linked control over code changes.
 
-## What This MCP Is For
+**What it does:** prompt → agent → MCP → PlanGraph → gated execution → finish.
 
-This MCP is a policy-gated controller for code changes in brittle Angular 14 repos.
+---
 
-- Single tool entrypoint: `controller.turn`.
-- Flow target: `prompt -> agent -> MCP -> planGraph -> gated work units -> finish`.
-- Strong-model planning with explicit PlanGraph validation.
-- Weak-model implementation only after plan acceptance.
-- Context packs are lexical-first, graph-backed, and high-signal.
-- Mutation options are explicit and allowlisted; custom codemod engines are blocked by policy.
+## Setup (5 minutes)
 
-## Runtime Project
+### Prerequisites
 
-- `.ai/mcp-controller/` contains the executable MCP codebase:
-  - `src/`
-  - `tests/`
-  - `scripts/`
-  - `specs/`
-  - `package.json`
-- Runtime is source-first (`tsx`): no project build artifact directory is required.
-  - `dist/` directories that exist under `.ai/mcp-controller/node_modules/` are dependency internals only.
+| Dependency | Version | Notes |
+|------------|---------|-------|
+| Node.js | ≥ 25 | Via [nvm](https://github.com/nvm-sh/nvm). WSL: `source ~/.nvm/nvm.sh && nvm use 25` |
+| Neo4j | 5.x | Community or Enterprise, running locally or remote |
 
-## Runtime Data/Config
+### 1. Install dependencies
 
-- `.ai/config/` layered config + schema.
-- `.ai/auth/` local auth files (gitignored except docs).
-- `.ai/graph/` graph seed/cypher/export artifacts.
-- `.ai/tmp/` runtime temp artifacts/observability.
+From your repo root (the parent of `.ai/`):
 
-## Run Commands
+```bash
+npm --prefix .ai/mcp-controller install
+```
 
-From the host repo root:
+No build step — runs directly from TypeScript via `tsx`.
 
-- `npm --prefix .ai/mcp-controller test`
-- `npm --prefix .ai/mcp-controller start`
-- `npm --prefix .ai/mcp-controller run e2e:smoke`
-- `npm --prefix .ai/mcp-controller run start:mcp`
-- `npm --prefix .ai/mcp-controller run e2e:mcp-smoke`
-- `npm --prefix .ai/mcp-controller run e2e:mcp-stdio-smoke`
+### 2. Configure Neo4j
 
-Graph operations:
+Create a database called `piopex` in your Neo4j instance.
 
-- `npm --prefix .ai/mcp-controller run graphops:check`
-- `npm --prefix .ai/mcp-controller run graphops:sync`
-- `npm --prefix .ai/mcp-controller run graphops:export`
+Default connection (works out of the box with local Neo4j):
 
-## Seeding and Resetting the DB
+| Setting | Default |
+|---------|---------|
+| URI | `bolt://127.0.0.1:7687` |
+| Username | `neo4j` |
+| Password | `12345678` |
+| Database | `piopex` |
 
-Seed source-of-truth lives in:
-
-- `.ai/graph/seed/`
-- `.ai/graph/cypher/`
-
-To rebuild Neo4j from seed:
-
-- `npm --prefix .ai/mcp-controller run graphops:sync`
-
-To verify connectivity:
-
-- `npm --prefix .ai/mcp-controller run graphops:check`
-
-To export snapshot deltas:
-
-- `npm --prefix .ai/mcp-controller run graphops:export`
-
-Graph reset behavior:
-
-- `e2e:smoke` and `e2e:mcp-smoke` call `graphops:sync` before and after test flow.
-- `e2e:mcp-stdio-smoke` is transport/read-path focused and does not mutate graph state.
-
-## MCP Client Config
-
-- Template: `.ai/config/mcp.client.template.json`
-- Local ready-to-use example (this workspace): `.ai/config/mcp.client.local.json`
-- Launcher: `.ai/mcp-controller/scripts/run-mcp-stdio.mjs`
-- Optional target override: set `MCP_TARGET_REPO_ROOT` to point MCP indexing/snapshots at a sibling test app while keeping `.ai` in root.
-- Swagger can be provided as a root URL (or full spec URL) through connector inputs/config roots.
-
-## VS Code Copilot MCP Setup
-
-Workspace config is provided at:
-
-- `.vscode/mcp.json`
-
-What it does:
-
-- Registers `mcp-controller-local` as a stdio MCP server.
-- Launches MCP through Windows `wsl.exe` into the WSL runtime.
-- Runs `.ai/mcp-controller/scripts/run-mcp-stdio.mjs` from `/mnt/c/Users/WowSi/ai_dump_2`.
-
-Quick verification in VS Code:
-
-1. Open this repo root in VS Code.
-2. Run command palette: `MCP: List Servers` and confirm `mcp-controller-local` is discovered.
-3. Run `MCP: Start Server` for `mcp-controller-local`.
-4. In Copilot Chat (agent mode), run a task that uses MCP and confirm tool calls resolve through `controller.turn`.
-
-Troubleshooting:
-
-- If VS Code logs `spawn node ENOENT`, MCP cannot find `node` on extension-host PATH.
-- This workspace avoids PATH lookups by using:
-  - Windows launcher: `C:\\Windows\\System32\\wsl.exe`
-  - WSL Node: `/home/limz/.nvm/versions/node/v25.3.0/bin/node`
-- If VS Code logs `Cannot read properties of undefined (reading 'replace')`, remove `${...}` placeholders from `.vscode/mcp.json` and use explicit command/args.
-
-## Patch/Codemod Policy
-
-- `patch_apply` supports:
-  - `replace_text`
-  - `ast_codemod` (allowlisted only)
-- `ast_codemod` requires PlanGraph change-node citation `codemod:<codemodId>` (optionally versioned).
-- Unknown/custom codemod IDs are rejected (`PLAN_POLICY_VIOLATION`).
-- Full codemod policy spec: `.ai/mcp-controller/specs/ast_codemod_policy.md`
-
-## Agent Runtime Options Contract
-
-Agent must treat MCP-disclosed options as the source of truth, not assumptions:
-
-1. Call `controller.turn` with `verb="list"` before planning.
-2. Read `result.patchApplyOptions`.
-3. Build PlanGraph + `patch_apply` calls only from those options.
-
-Expected option shape:
+**To override**, create `.ai/config/env.local.json` (gitignored):
 
 ```json
 {
-  "replaceText": {
-    "operation": "replace_text",
-    "requiredFields": ["nodeId", "targetFile", "targetSymbols", "find", "replace"]
-  },
-  "astCodemods": [
-    {
-      "id": "rename_identifier_in_file",
-      "requiredParams": ["from", "to"],
-      "citationToken": "codemod:rename_identifier_in_file"
-    }
-  ],
-  "customCodemodsAllowed": false,
-  "citationRule": "When operation=ast_codemod, change-node citations must include codemod:<codemodId>."
+  "neo4j": {
+    "uri": "bolt://your-host:7687",
+    "username": "neo4j",
+    "password": "your-password",
+    "database": "piopex"
+  }
 }
 ```
 
-Notes:
+Or set env vars: `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD`, `NEO4J_DATABASE`.
 
-- If `customCodemodsAllowed=false`, agent must not invent codemod IDs.
-- If requested change needs a codemod that is not allowlisted, agent should choose a permitted operation or escalate.
-- For `ast_codemod`, PlanGraph `change.citations` must include `codemod:<codemodId>` (or `codemod:<codemodId>@vN`) before execution.
-- The same options are embedded in ContextPack as `executionOptions.patchApply`.
+### 3. Verify connectivity
 
-## External Test-App Harness
+```bash
+npm --prefix .ai/mcp-controller run graphops:check
+# → "graphops connectivity check passed."
+```
 
-Use sibling test-app validation without copying `.ai` into the app:
+### 4. Seed the graph database
 
-- `node e2e/run-validation.mjs`
+```bash
+npm --prefix .ai/mcp-controller run graphops:sync
+# → "graphops sync complete. appliedCypherStatements=1 seededRows=6"
+```
 
-This harness:
+This wipes the database, rebuilds indexes, and loads all seed data from `.ai/graph/seed/`. **Idempotent — safe to run anytime.**
 
-- Uses root `.ai` only.
-- Targets `test-app` via `MCP_TARGET_REPO_ROOT`.
-- Verifies test-app git status remains clean.
-- Verifies `.ai/graph/seed` digest remains unchanged.
+### 5. Connect VS Code
+
+Add to your `.vscode/mcp.json` (create if it doesn't exist):
+
+```jsonc
+{
+  "servers": {
+    "mcp-controller": {
+      "command": "wsl",
+      "args": [
+        "bash", "-c",
+        "source ~/.nvm/nvm.sh && cd \"$(wslpath '${workspaceFolder}')\" && exec node --import tsx .ai/mcp-controller/src/mcp/stdioServer.ts"
+      ],
+      "env": {
+        "NEO4J_URI": "bolt://127.0.0.1:7687",
+        "NEO4J_USERNAME": "neo4j",
+        "NEO4J_PASSWORD": "123456789",
+        "NEO4J_DATABASE": "piopex"
+      }
+    }
+  }
+}
+```
+
+> **Not on Windows/WSL?** Use the template at `.ai/config/mcp.client.template.json` — replace `<ABSOLUTE_REPO_ROOT>` with your repo path and point your MCP client at it.
+
+### 6. Verify in VS Code
+
+1. Command palette → **MCP: List Servers** → confirm `mcp-controller` appears
+2. Command palette → **MCP: Start Server** → start it
+3. In Copilot Chat (agent mode), the `controller_turn` tool should be available
+
+---
+
+## Daily Use
+
+### Resyncing the database after seed changes
+
+If anyone updates files in `.ai/graph/seed/`, resync:
+
+```bash
+npm --prefix .ai/mcp-controller run graphops:sync
+```
+
+Sync is destructive-then-rebuild — it drops everything and reloads from seed. The seed files themselves are **never modified by the runtime** (path isolation enforced in code).
+
+### Exporting current graph state
+
+```bash
+npm --prefix .ai/mcp-controller run graphops:export
+# Writes JSONL to .ai/graph/out/{policy,recipe,memory,fact}/
+```
+
+### Running tests
+
+```bash
+npm --prefix .ai/mcp-controller test
+```
+
+---
+
+## How It Works
+
+### Single tool, 18 verbs
+
+The MCP exposes one tool — `controller_turn` — with a `verb` parameter. Agents call verbs to explore code, build plans, and execute changes.
+
+| Phase | Verbs (14 pre-plan) |
+|-------|---------------------|
+| Explore | `list_available_verbs`, `list_scoped_files`, `list_directory_contents`, `read_file_lines` |
+| Analyze | `lookup_symbol_definition`, `trace_symbol_graph`, `search_codebase_text` |
+| External | `fetch_jira_ticket`, `fetch_api_spec` |
+| Plan | `submit_execution_plan`, `write_scratch_file`, `get_original_prompt`, `request_evidence_guidance`, `signal_task_complete` |
+
+| Phase | Verbs (4 post-plan, after plan acceptance) |
+|-------|---------------------------------------------|
+| Execute | `apply_code_patch`, `run_sandboxed_code`, `execute_gated_side_effect`, `run_automation_recipe` |
+
+### Run states
+
+```
+PLAN_REQUIRED → (submit_execution_plan) → PLAN_ACCEPTED → EXECUTION_ENABLED → COMPLETED
+                                                                    ↓
+                                                              BLOCKED_BUDGET / FAILED
+```
+
+Mutation verbs are only available after a PlanGraph is accepted.
+
+### Memory system
+
+The controller learns from friction (repeated rejections) and enforces that knowledge on future sessions:
+
+- **Few-shot injection** — before/after examples injected into `trace_symbol_graph` results
+- **Plan rules** — required steps / deny conditions checked during plan validation
+- **Strategy signals** — domain-specific feature flag overrides
+
+Memories are tied to **domain anchors** (auto-seeded from folder structure) and follow a lifecycle: `pending → provisional → approved`.
+
+Three ways memories are created:
+1. **Automatic** — same rejection code hits threshold (default: 3) → scaffolded candidate
+2. **Human override** — drop JSON in `.ai/memory/overrides/`
+3. **Retrospective** — agent calls `signal_task_complete` at end of session
+
+See `.ai/how-to/memory-system.md` for the full guide.
+
+---
+
+## Seed Data
+
+Seed files are the source of truth for the graph database.
+
+```
+.ai/graph/
+├── cypher/                           # Neo4j constraint scripts
+│   └── 001_constraints.cypher
+├── seed/                             # JSONL seed data
+│   ├── fact/                         # Workspace entities
+│   │   ├── nodes.jsonl
+│   │   └── rels.jsonl
+│   ├── policy/                       # Policies + lexeme aliases
+│   │   ├── policies.jsonl
+│   │   └── lexeme_aliases.jsonl
+│   └── recipe/                       # Codemod/recipe definitions
+│       └── manifest.jsonl
+└── out/                              # Export output (gitignored)
+```
+
+### Adding seed data
+
+Add JSONL rows to the appropriate file. Each row must have `kind: "node"` or `kind: "rel"`.
+
+Policy/recipe nodes require: `id`, `type`, `version`, `updated_at`, `updated_by`.
+
+```json
+{"kind":"node","id":"my_policy","labels":["PolicyRule"],"properties":{"type":"hard","rule":"no_foo","version":1,"updated_at":"2026-02-17","updated_by":"dev"}}
+```
+
+Then resync: `npm --prefix .ai/mcp-controller run graphops:sync`
+
+---
+
+## Configuration
+
+Config is layered (later wins):
+
+1. `.ai/config/base.json` — defaults (committed)
+2. `.ai/config/repo.json` — repo-specific overrides (committed)
+3. `.ai/config/env.local.json` — local overrides (gitignored)
+4. Environment variables — final override
+5. Validated against `.ai/config/schema.json`
+
+See `.ai/config/README.md` for details.
+
+### Key environment variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `NEO4J_URI` | `bolt://127.0.0.1:7687` | Neo4j connection |
+| `NEO4J_USERNAME` | `neo4j` | Neo4j auth |
+| `NEO4J_PASSWORD` | `12345678` | Neo4j auth |
+| `NEO4J_DATABASE` | `piopex` | Neo4j database |
+| `MCP_REPO_ROOT` | auto-detected | Override repo root |
+| `MCP_TARGET_REPO_ROOT` | same as repo root | Point indexer at different app |
+| `MCP_DASHBOARD_PORT` | `8722` | Dashboard HTTP port |
+
+---
+
+## Patch & Codemod Policy
+
+`apply_code_patch` supports two operations:
+
+| Operation | Purpose |
+|-----------|---------|
+| `replace_text` | Direct text replacement |
+| `ast_codemod` | Allowlisted AST transform |
+
+4 built-in codemods: `rename_identifier_in_file`, `update_import_specifier`, `update_route_path_literal`, `rewrite_template_tag`.
+
+Custom codemods can be registered at runtime — see `.ai/how-to/extending-codemods.md`.
+
+PlanGraph change nodes using `ast_codemod` must include a `codemod:<id>` citation. Unknown codemod IDs are rejected with `PLAN_POLICY_VIOLATION`.
+
+---
+
+## Folder Layout
+
+```
+.ai/
+├── config/              # Layered config + schema
+├── graph/               # Neo4j seed data, constraints, exports
+├── how-to/              # Developer guides
+│   ├── memory-system.md
+│   └── extending-codemods.md
+├── memory/              # Runtime memory records + override drop folder
+├── mcp-controller/      # MCP controller source
+│   ├── src/
+│   │   ├── contracts/   # Type contracts
+│   │   ├── domains/     # Domain services
+│   │   ├── handlers/    # 18 verb handlers
+│   │   ├── infrastructure/
+│   │   ├── mcp/         # NDJSON stdio transport
+│   │   ├── runtime/     # Bootstrap + turn controller
+│   │   └── shared/
+│   ├── specs/           # Controller specification
+│   ├── tests/
+│   └── package.json
+├── tmp/                 # Scratch files, friction ledger (gitignored)
+└── README.md            # ← you are here
+```
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| `spawn node ENOENT` in VS Code | MCP can't find `node`. Use absolute path to node binary in `mcp.json` |
+| `Cannot read properties of undefined (reading 'replace')` | Remove `${...}` placeholders from `mcp.json`, use explicit paths |
+| Neo4j hangs on startup | Ensure you're on Node ≥ 25 (driver uses lazy dynamic import to avoid hang) |
+| `graphops:check` fails | Neo4j not running, wrong credentials, or `piopex` database doesn't exist |
+| Stale graph after seed edits | Run `graphops:sync` — it always rebuilds from seed files |
