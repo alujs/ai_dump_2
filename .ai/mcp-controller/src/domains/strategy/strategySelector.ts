@@ -110,6 +110,18 @@ export function selectStrategy(input: ContextSignatureInput): StrategySelection 
   return { strategyId: "ui_aggrid_feature", contextSignature: sig, reasons };
 }
 
+/**
+ * Re-select a strategy from a pre-computed (possibly overridden) ContextSignature.
+ * Uses the same decision table as selectStrategy but skips re-computing the signature.
+ * This enables strategy_signal memory overrides to actually change the strategy selection.
+ */
+export function selectStrategyFromSignature(sig: ContextSignature): StrategyId {
+  if (sig.migration_adp_present) return "migration_adp_to_sdf";
+  if (sig.task_type_guess === "debug") return "debug_symptom_trace";
+  if (sig.has_swagger || sig.task_type_guess === "api_contract") return "api_contract_feature";
+  return "ui_aggrid_feature";
+}
+
 export function recommendedSubAgentSplits(strategyId: StrategyId): string[] {
   switch (strategyId) {
     case "migration_adp_to_sdf":

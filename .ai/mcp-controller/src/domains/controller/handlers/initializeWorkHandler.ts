@@ -22,9 +22,10 @@ import type { StrategySelection } from "../../strategy/strategySelector";
 import { capabilitiesForState } from "../../capability-gating/capabilityMatrix";
 import { createContextPack } from "../../context-pack/contextPackService";
 import { collectRetrievalLanes } from "../../context-pack/retrievalLanes";
-import { selectStrategy, recommendedSubAgentSplits } from "../../strategy/strategySelector";
+import { selectStrategy, selectStrategyFromSignature, recommendedSubAgentSplits } from "../../strategy/strategySelector";
 import { listAllowedFiles } from "../../worktree-scope/worktreeScopeService";
 import { listPatchApplyOptions } from "../../patch-exec/patchExecService";
+import { computeEnforcementBundle, type GraphPolicyNode, type MigrationRuleNode } from "../../plan-graph/enforcementBundle";
 import { resolveTargetRepoRoot, workRoot, scratchRoot } from "../../../shared/fsPaths";
 import { writeText } from "../../../shared/fileStore";
 import { verbDescriptionsForCapabilities } from "../../../shared/verbCatalog";
@@ -70,9 +71,12 @@ export async function handleInitializeWork(
   for (const attachment of argsAttachments) {
     if (attachment && typeof attachment === "object") {
       const att = attachment as Record<string, unknown>;
+      const rawRef = String(att.ref ?? att.name ?? `${session.artifacts.length}`);
+      // Standardize all attachment refs with 'attachment:' prefix for consistent validator enforcement
+      const normalizedRef = rawRef.startsWith("attachment:") ? rawRef : `attachment:${rawRef}`;
       session.artifacts.push({
         source: "attachment",
-        ref: String(att.ref ?? att.name ?? `attachment:${session.artifacts.length}`),
+        ref: normalizedRef,
         summary: String(att.caption ?? att.summary ?? att.description ?? ""),
         metadata: att,
       });
@@ -85,12 +89,22 @@ export async function handleInitializeWork(
   /* ── 3. Query active memories SECOND ────────────────────── */
   const worktreeRoot = resolveTargetRepoRoot();
   let scopeFiles = listAllowedFiles(session.workId, session.scopeAllowlist, worktreeRoot);
-  const activeMemories = await deps.memoryService.findActiveForAnchors(
-    scopeFiles.slice(0, 50).map((f) => {
+
+  // Derive anchor IDs properly using repo-relative paths
+  let anchorIds: string[] = [];
+  try {
+    const { resolveAnchorsForFiles, expandAnchorHierarchy, scanAnchors } = await import("../../memory/anchorSeeder");
+    const { anchors: allAnchors } = await scanAnchors(worktreeRoot);
+    anchorIds = resolveAnchorsForFiles(scopeFiles.slice(0, 50), allAnchors);
+    anchorIds = expandAnchorHierarchy(anchorIds, allAnchors);
+  } catch {
+    // Fallback: derive anchors from path segments if anchorSeeder unavailable
+    anchorIds = scopeFiles.slice(0, 50).map((f) => {
       const parts = f.replace(/\\/g, "/").split("/");
       return parts.length > 1 ? `anchor:${parts.slice(0, 2).join("/")}` : `anchor:${parts[0]}`;
-    })
-  );
+    });
+  }
+  const activeMemories = await deps.memoryService.findActiveForAnchors(anchorIds);
 
   /* ── 4. Compute base ContextSignature ──────────────────── */
   const jiraSlice = (session as SessionState & {
@@ -114,20 +128,17 @@ export async function handleInitializeWork(
     const ticketKey = promptTicket ?? lexemeTicket;
     if (ticketKey) {
       try {
-        const jiraConnector = deps.connectors.get("jira");
-        if (jiraConnector) {
-          const ticket = await jiraConnector.fetch({ ticketKey });
-          if (ticket) {
-            session.artifacts.push(ticket);
-            const meta = ticket.metadata as Record<string, unknown> | undefined;
-            jiraFields = {
-              issueType: meta?.issueType as string | undefined,
-              labels: meta?.labels as string[] | undefined,
-              components: meta?.components as string[] | undefined,
-              summary: ticket.summary,
-              description: meta?.description as string | undefined,
-            };
-          }
+        const ticket = await deps.connectors.fetchJiraIssue(ticketKey);
+        if (ticket) {
+          session.artifacts.push(ticket);
+          const meta = ticket.metadata as Record<string, unknown> | undefined;
+          jiraFields = {
+            issueType: meta?.issueType as string | undefined,
+            labels: meta?.labels as string[] | undefined,
+            components: meta?.components as string[] | undefined,
+            summary: ticket.summary,
+            description: meta?.description as string | undefined,
+          };
         }
       } catch { /* Jira fetch failures are non-fatal */ }
     }
@@ -141,13 +152,10 @@ export async function handleInitializeWork(
     );
     if (hasSwaggerRef) {
       try {
-        const swaggerConnector = deps.connectors.get("swagger");
-        if (swaggerConnector) {
-          const specUrl = lexemes.find((l) => l.startsWith("http")) ?? "";
-          if (specUrl) {
-            const spec = await swaggerConnector.fetch({ specUrl });
-            if (spec) session.artifacts.push(spec);
-          }
+        const specUrl = lexemes.find((l) => l.startsWith("http")) ?? "";
+        if (specUrl) {
+          const spec = await deps.connectors.registerSwaggerRef(specUrl);
+          if (spec) session.artifacts.push(spec);
         }
       } catch { /* Swagger fetch failures are non-fatal */ }
     }
@@ -216,17 +224,27 @@ export async function handleInitializeWork(
   // Extract raw Jira ticket from session artifacts
   const rawJiraTicket = extractRawJiraTicket(session.artifacts);
 
-  /* ── 6b. Enrich scope from retrieval lanes (v2: start narrow, grow from evidence) ── */
+  /* ── 6b. Enrich scope from evidence (v2: start narrow, grow from evidence) ── */
   if (scopeFiles.length === 0) {
     const retrievedFiles = new Set<string>();
+
+    // Primary source: all files the indexer discovered (explicit file paths, not root placeholder)
+    if (deps.indexing) {
+      for (const fp of deps.indexing.getIndexedFilePaths()) {
+        retrievedFiles.add(fp);
+      }
+    }
+
+    // Secondary source: retrieval lane hits (in case indexer missed something)
     for (const hit of retrievalLanes.lexicalLane) {
-      const fp = hit.filePath as string | undefined;
+      const fp = (hit as Record<string, unknown>).filePath as string | undefined;
       if (fp) retrievedFiles.add(fp);
     }
     for (const hit of retrievalLanes.symbolLane) {
-      const fp = hit.filePath as string | undefined;
+      const fp = (hit as Record<string, unknown>).filePath as string | undefined;
       if (fp) retrievedFiles.add(fp);
     }
+
     // Also include schema links as always-accessible files
     const schemaLinks = [
       ".ai/config/schema.json",
@@ -276,13 +294,52 @@ export async function handleInitializeWork(
     files: scopeFiles,
   };
 
+  /* ── 7b. Compute enforcement bundle from memories + graph policies ── */
+  // Graph policies are fetched from Neo4j via proofChainBuilder if available.
+  // For now, pass empty arrays for graph policies and migration rules —
+  // they'll be populated once the Neo4j policy query service is wired in.
+  // The key structural fix is that the bundle is now COMPUTED and ATTACHED
+  // to the session, so handleSubmitPlan can consume it.
+  let graphPolicies: GraphPolicyNode[] = [];
+  let migrationRules: MigrationRuleNode[] = [];
+
+  if (deps.proofChainBuilder) {
+    try {
+      const policyResult = await (deps.proofChainBuilder as ProofChainBuilder & {
+        queryGraphPolicies?: () => Promise<{ graphPolicies: GraphPolicyNode[]; migrationRules: MigrationRuleNode[] }>;
+      }).queryGraphPolicies?.();
+      if (policyResult) {
+        graphPolicies = policyResult.graphPolicies;
+        migrationRules = policyResult.migrationRules;
+      }
+    } catch { /* Graph policy query failures are non-fatal */ }
+  }
+
+  const enforcementBundle = computeEnforcementBundle(activeMemories, graphPolicies, migrationRules);
+  session.enforcementBundle = enforcementBundle;
+
   /* ── 8. Compute planGraphSchema (§7 lines 348-360) ─────── */
   const planGraphSchema = {
     validators: computeActiveValidators(strategy, activeMemories),
     expectedNodeKinds: ["change", "validate", "escalate", "side_effect"],
     requiredFields: {
-      change: ["nodeId", "operation", "targetFile", "editIntent", "citations", "codeEvidence"],
-      validate: ["nodeId", "verificationHooks", "mapsToNodeIds", "successCriteria"],
+      change: [
+        "nodeId", "kind", "dependsOn", "atomicityBoundary", "expectedFailureSignatures",
+        "operation", "targetFile", "targetSymbols", "whyThisFile", "editIntent",
+        "escalateIf", "citations", "codeEvidence", "artifactRefs", "policyRefs", "verificationHooks",
+      ],
+      validate: [
+        "nodeId", "kind", "dependsOn", "atomicityBoundary", "expectedFailureSignatures",
+        "verificationHooks", "mapsToNodeIds", "successCriteria",
+      ],
+      escalate: [
+        "nodeId", "kind", "dependsOn", "atomicityBoundary", "expectedFailureSignatures",
+        "requestedEvidence", "blockingReasons",
+      ],
+      side_effect: [
+        "nodeId", "kind", "dependsOn", "atomicityBoundary", "expectedFailureSignatures",
+        "sideEffectType", "sideEffectPayloadRef", "commitGateId",
+      ],
     },
     evidencePolicy: {
       minRequirementSources: 1,
@@ -294,7 +351,10 @@ export async function handleInitializeWork(
   };
 
   /* ── 9. Build response ─────────────────────────────────── */
-  const capabilities = capabilitiesForState("PLANNING");
+
+  // Warn if scope is empty — this means the pack has no files and reads will fail (#4 fix)
+  if (scopeFiles.length === 0) {
+    result.warning = \"contextPack.files is empty. The indexing service may not have run or found any files. \"\n      + \"Use 'escalate' with type='scope_expand' to request specific files be added to the pack.\";\n  }
 
   result.contextPack = {
     ref: packOutput.contextPackRef,
@@ -328,8 +388,8 @@ export async function handleInitializeWork(
     escalationGuidance: describeEscalationGuidance(strategy.strategyId),
     suggestedSplits: recommendedSubAgentSplits(strategy.strategyId),
   };
-  result.capabilities = capabilities;
-  result.verbDescriptions = verbDescriptionsForCapabilities(capabilities);
+  // capabilities and verbDescriptions are already in the response envelope (turnController.makeResponse);
+  // including them in result would be duplicate token burn (#33 fix)
   result.message = "Work session initialized. ContextPack built. You are now in PLANNING state. "
     + "Read pack-scoped files, then submit_execution_plan or escalate for more context.";
 
@@ -452,7 +512,8 @@ function extractRawJiraTicket(
 
 /**
  * Phase 5: Apply strategy_signal memory overrides to the base strategy selection.
- * Overrides modify the ContextSignature feature flags based on friction-derived signals.
+ * Overrides modify the ContextSignature feature flags based on friction-derived signals,
+ * then RE-SELECT the strategy using the overridden signature (§13: "compute final strategy AFTER overrides").
  */
 function applyStrategySignalOverrides(
   baseStrategy: StrategySelection,
@@ -469,9 +530,15 @@ function applyStrategySignalOverrides(
     overriddenSignature[featureFlag] = value;
   }
 
+  const typedSignature = overriddenSignature as StrategySelection["contextSignature"];
+
+  // Re-run strategy selection against the overridden signature (#11 fix)
+  const reSelectedStrategyId = selectStrategyFromSignature(typedSignature);
+
   return {
     ...baseStrategy,
-    contextSignature: overriddenSignature as StrategySelection["contextSignature"],
+    strategyId: reSelectedStrategyId,
+    contextSignature: typedSignature,
     reasons: [
       ...baseStrategy.reasons,
       ...signalMemories
@@ -480,6 +547,9 @@ function applyStrategySignalOverrides(
           reason: `strategy_signal override: ${m.strategySignal!.featureFlag} = ${m.strategySignal!.value}`,
           evidenceRef: `memory:strategy_signal`,
         })),
+      ...(reSelectedStrategyId !== baseStrategy.strategyId
+        ? [{ reason: `Strategy changed from '${baseStrategy.strategyId}' to '${reSelectedStrategyId}' due to signal overrides`, evidenceRef: "memory:strategy_signal" }]
+        : []),
     ],
   };
 }

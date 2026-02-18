@@ -8,6 +8,7 @@ import { executeCodeRun } from "../../code-run/codeRunService";
 import { scopeAllowsFile, scopeAllowsSymbols } from "../../worktree-scope/worktreeScopeService";
 import { writeArtifactBundle } from "../../../shared/artifacts";
 import { traceRef } from "../../../shared/ids";
+import { isInPack } from "./readHandlers";
 import {
   parsePatchApplyRequest,
   parseCodeRunRequest,
@@ -28,6 +29,29 @@ function markNodeCompleted(session: SessionState, nodeId: string): void {
   if (session.planGraphProgress.completedNodeIds.includes(nodeId)) return;
   session.planGraphProgress.completedNodeIds.push(nodeId);
   session.planGraphProgress.completedNodes = session.planGraphProgress.completedNodeIds.length;
+  autoCompleteValidateNodes(session);
+}
+
+/**
+ * Auto-complete validate nodes whose mapped change nodes are all completed.
+ * Per architecture_v2: when every change node referenced by a validate node's
+ * mapsToNodeIds is done, the validate node is implicitly satisfied.
+ */
+function autoCompleteValidateNodes(session: SessionState): void {
+  if (!session.planGraph?.nodes || !session.planGraphProgress) return;
+  const completed = new Set(session.planGraphProgress.completedNodeIds);
+  for (const node of session.planGraph.nodes) {
+    if ((node as any).kind !== "validate") continue;
+    const nodeId = (node as any).nodeId;
+    if (completed.has(nodeId)) continue;
+    const mapped: string[] = (node as any).mapsToNodeIds ?? [];
+    if (mapped.length === 0) continue;
+    if (mapped.every((id: string) => completed.has(id))) {
+      session.planGraphProgress.completedNodeIds.push(nodeId);
+      session.planGraphProgress.completedNodes = session.planGraphProgress.completedNodeIds.length;
+      completed.add(nodeId);
+    }
+  }
 }
 
 export async function handlePatchApply(
@@ -44,7 +68,7 @@ export async function handlePatchApply(
     denyReasons.push("PLAN_SCOPE_VIOLATION");
     result.error = !session.planGraph
       ? "No plan has been submitted yet. You must call verb='submit_execution_plan' with a valid PlanGraphDocument before using apply_code_patch. Current state: " + state
-      : `Current state '${state}' does not allow mutations. apply_code_patch requires state PLAN_ACCEPTED or EXECUTION_ENABLED. Submit and get a plan accepted first.`;
+      : `Current state '${state}' does not allow mutations. apply_code_patch requires state PLAN_ACCEPTED. Submit and get a plan accepted first.`;
     return { result, denyReasons };
   }
 
@@ -53,6 +77,13 @@ export async function handlePatchApply(
     denyReasons.push("PLAN_MISSING_REQUIRED_FIELDS");
     result.error = "patch_apply requires args: { nodeId: string, targetFile: string, targetSymbols: string[], operation: 'replace_text'|'ast_codemod', find?: string, replace?: string, codemodId?: string, codemodParams?: object }. Check that all required fields are non-empty strings.";
     result.missingFields = ["nodeId", "targetFile", "targetSymbols", "operation"];
+    return { result, denyReasons };
+  }
+
+  // #5: Pack-scope guard — targetFile must be in the context pack
+  if (!isInPack(request.targetFile, session)) {
+    denyReasons.push("PACK_SCOPE_VIOLATION");
+    result.patchApplyError = `File '${request.targetFile}' is not in the current context pack. Add it via escalate before patching.`;
     return { result, denyReasons };
   }
 
@@ -149,7 +180,7 @@ export async function handlePatchApply(
       diffSummaryRef: bundle.diffSummaryRef,
     };
     markNodeCompleted(session, request.nodeId);
-    return { result, denyReasons, stateOverride: "EXECUTION_ENABLED" };
+    return { result, denyReasons, stateOverride: "PLAN_ACCEPTED" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "PATCH_FAILED";
     result.patchApplyError = message;
@@ -172,7 +203,7 @@ export async function handleCodeRun(
     denyReasons.push("PLAN_SCOPE_VIOLATION");
     result.error = !session.planGraph
       ? "No plan has been submitted yet. You must call verb='submit_execution_plan' with a valid PlanGraphDocument before using run_sandboxed_code. Current state: " + state
-      : `Current state '${state}' does not allow mutations. run_sandboxed_code requires state PLAN_ACCEPTED or EXECUTION_ENABLED. Submit and get a plan accepted first.`;
+      : `Current state '${state}' does not allow mutations. run_sandboxed_code requires state PLAN_ACCEPTED. Submit and get a plan accepted first.`;
     return { result, denyReasons };
   }
 
@@ -181,6 +212,16 @@ export async function handleCodeRun(
     denyReasons.push("PLAN_MISSING_REQUIRED_FIELDS");
     result.error = "run_sandboxed_code requires args: { nodeId: string, iife: string, declaredInputs: object, timeoutMs: number, memoryCapMb: number, artifactOutputRef: string, expectedReturnShape: string }. Check that all required fields are present and non-empty.";
     result.missingFields = ["nodeId", "iife", "declaredInputs", "timeoutMs", "memoryCapMb", "artifactOutputRef", "expectedReturnShape"];
+    return { result, denyReasons };
+  }
+
+  // #7: Verify nodeId exists in the accepted plan as a change or validate node
+  const planNode = session.planGraph!.nodes?.find(
+    (n: any) => n.nodeId === request.nodeId && (n.kind === "change" || n.kind === "validate")
+  );
+  if (!planNode) {
+    denyReasons.push("PLAN_SCOPE_VIOLATION");
+    result.error = `No change or validate node with nodeId='${request.nodeId}' exists in the accepted plan. run_sandboxed_code must reference a valid plan node.`;
     return { result, denyReasons };
   }
 
@@ -233,7 +274,7 @@ export async function handleCodeRun(
     valueSummary: summarizeValue(execution.value),
   };
   markNodeCompleted(session, request.nodeId);
-  return { result, denyReasons, stateOverride: "EXECUTION_ENABLED" };
+  return { result, denyReasons, stateOverride: "PLAN_ACCEPTED" };
 }
 
 export async function handleSideEffect(
@@ -250,7 +291,7 @@ export async function handleSideEffect(
     denyReasons.push("PLAN_SCOPE_VIOLATION");
     result.error = !session.planGraph
       ? "No plan has been submitted yet. You must call verb='submit_execution_plan' with a valid PlanGraphDocument before using execute_gated_side_effect. Current state: " + state
-      : `Current state '${state}' does not allow mutations. execute_gated_side_effect requires state PLAN_ACCEPTED or EXECUTION_ENABLED. Submit and get a plan accepted first.`;
+      : `Current state '${state}' does not allow mutations. execute_gated_side_effect requires state PLAN_ACCEPTED. Submit and get a plan accepted first.`;
     return { result, denyReasons };
   }
 
@@ -309,5 +350,5 @@ export async function handleSideEffect(
 
   result.sideEffect = { accepted: true, artifactBundleRef: bundle.bundleDir };
   markNodeCompleted(session, nodeId);
-  return { result, denyReasons, stateOverride: "EXECUTION_ENABLED" };
+  return { result, denyReasons, stateOverride: "PLAN_ACCEPTED" };
 }

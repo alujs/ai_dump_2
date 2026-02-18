@@ -25,18 +25,42 @@ function normalizeSafeDir(root: string, relativeTarget: string): string {
  * Check if a file path is within the session's contextPack.
  * When contextPack is set (post-initialize_work), all reads are pack-scoped.
  * §3 lines 141-153 — pack-scoping rule.
+ *
+ * With verb capability gating (invariant #1), read verbs can only execute
+ * in PLANNING+ states where contextPack MUST exist. Returning false when
+ * no pack exists closes the bypass gap identified in the v2 audit.
  */
-function isInPack(filePath: string, session: SessionState): boolean {
-  if (!session.contextPack) return true; // No pack yet → allow (backward compat)
-  const normalized = filePath.replace(/\\/g, "/");
+export function isInPack(filePath: string, session: SessionState): boolean {
+  if (!session.contextPack) return false; // No pack → deny (must initialize_work first)
+  const packFiles = session.contextPack.files;
+  if (packFiles.length === 0) return false; // Empty pack → deny until escalate adds files
+  const normalized = toRepoRelative(filePath);
   // Scratch-area files (.ai/tmp/work/) are always accessible — they're the agent's own workspace
   if (normalized.includes(".ai/tmp/work/")) return true;
-  return session.contextPack.files.some((f) => {
-    const normalizedPackFile = f.replace(/\\/g, "/");
-    return normalized === normalizedPackFile
-      || normalized.endsWith(normalizedPackFile)
-      || normalizedPackFile.endsWith(normalized);
-  });
+  // .ai/ config/schema files are always accessible (controller's own files)
+  if (normalized.startsWith(".ai/")) return true;
+
+  // Build canonical set of repo-relative pack paths for exact matching
+  const canonicalPack = new Set(packFiles.map(toRepoRelative));
+  return canonicalPack.has(normalized);
+}
+
+/**
+ * Normalize a file path to repo-relative canonical form (forward slashes, no leading /).
+ * Strips absolute prefixes down to the repo-relative portion.
+ */
+function toRepoRelative(filePath: string): string {
+  let p = filePath.replace(/\\/g, "/");
+  // Strip the target repo root prefix if present
+  const repoRoot = resolveTargetRepoRoot().replace(/\\/g, "/");
+  if (p.startsWith(repoRoot + "/")) {
+    p = p.slice(repoRoot.length + 1);
+  } else if (p.startsWith(repoRoot)) {
+    p = p.slice(repoRoot.length);
+  }
+  // Strip leading ./ or /
+  p = p.replace(/^\.?\//, "");
+  return p;
 }
 
 export async function handleReadRange(
@@ -305,8 +329,8 @@ export async function handleReadNeighbors(
     try {
       const filePaths = [targetFile, ...symbolMatches.map((m) => m.filePath)].filter(Boolean);
       const { resolveAnchorsForFiles, expandAnchorHierarchy, scanAnchors } = await import("../../memory/anchorSeeder");
-      const { resolveRepoRoot } = await import("../../../shared/fsPaths");
-      const repoRoot = resolveRepoRoot();
+      const { resolveTargetRepoRoot: targetRepoRoot } = await import("../../../shared/fsPaths");
+      const repoRoot = targetRepoRoot();
       const { anchors: allAnchors } = await scanAnchors(repoRoot);
       const anchorIds = resolveAnchorsForFiles(filePaths, allAnchors);
       const expandedIds = expandAnchorHierarchy(anchorIds, allAnchors);

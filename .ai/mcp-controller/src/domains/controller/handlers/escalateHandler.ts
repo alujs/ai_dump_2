@@ -5,6 +5,7 @@
  * The agent calls this when the contextPack is insufficient.
  * The handler searches for matching files/symbols and adds them
  * to session.contextPack (monotonic — never removes files).
+ * Persists the updated pack to disk via enrichContextPack().
  *
  * Supports escalation types:
  *   - artifact_fetch: fetch specific artifacts (Jira, Swagger, files)
@@ -12,10 +13,10 @@
  *   - graph_expand:   trace symbol graph and add discovered files
  *   - pack_rebuild:   full re-retrieval (resets retrieval lanes)
  */
-import { createHash } from "node:crypto";
 import type { VerbResult, SessionState } from "../types";
 import type { EventStore } from "../../observability/eventStore";
 import type { IndexingService } from "../../indexing/indexingService";
+import { enrichContextPack, computePackHash } from "../../context-pack/contextPackService";
 
 export interface EscalateRequestedEvidence {
   type: "artifact_fetch" | "scope_expand" | "graph_expand" | "pack_rebuild";
@@ -68,42 +69,28 @@ export async function handleEscalate(
 
   if (deps.indexing) {
     for (const term of searchTerms) {
+      // Symbol search — uses searchSymbol (not lookupSymbol which doesn't exist)
       try {
-        // Symbol search
-        const symbolResults = await deps.indexing.lookupSymbol(term);
-        if (symbolResults) {
-          const matches = Array.isArray(symbolResults) ? symbolResults : [symbolResults];
-          for (const match of matches) {
-            const filePath = typeof match === "object" && match !== null
-              ? (match as Record<string, unknown>).filePath as string | undefined
-              : undefined;
-            if (filePath && !addedFiles.includes(filePath)) {
-              addedFiles.push(filePath);
-            }
-            const symbolName = typeof match === "object" && match !== null
-              ? (match as Record<string, unknown>).symbol as string | undefined
-              : undefined;
-            if (symbolName && !addedSymbols.includes(symbolName)) {
-              addedSymbols.push(symbolName);
-            }
+        const symbolResults = deps.indexing.searchSymbol(term, 20);
+        for (const match of symbolResults) {
+          if (match.filePath && !addedFiles.includes(match.filePath)) {
+            addedFiles.push(match.filePath);
+          }
+          if (match.symbol && !addedSymbols.includes(match.symbol)) {
+            addedSymbols.push(match.symbol);
           }
         }
       } catch {
         // Non-fatal: indexing may not have the symbol
       }
 
+      // Text search — uses searchLexical (not grepLexeme which doesn't exist)
       try {
-        // Text search for file discovery
-        const grepResults = await deps.indexing.grepLexeme(term);
-        if (grepResults) {
-          const matches = Array.isArray(grepResults) ? grepResults : [grepResults];
-          for (const match of matches) {
-            const filePath = typeof match === "object" && match !== null
-              ? (match as Record<string, unknown>).filePath as string | undefined
-              : undefined;
-            if (filePath && !addedFiles.includes(filePath)) {
-              addedFiles.push(filePath);
-            }
+        const lexicalResults = deps.indexing.searchLexical(term, 20);
+        for (const hit of lexicalResults) {
+          const filePath = (hit as { filePath?: string }).filePath;
+          if (filePath && !addedFiles.includes(filePath)) {
+            addedFiles.push(filePath);
           }
         }
       } catch {
@@ -112,20 +99,51 @@ export async function handleEscalate(
     }
   }
 
-  /* ── Monotonic pack growth: add new files, never remove ── */
+  /* ── Monotonic pack growth via enrichContextPack (persists to disk) ── */
+  const packRef = session.contextPack?.ref ?? "";
   const previousFiles = session.contextPack?.files ?? [];
   const previousHash = session.contextPack?.hash ?? "";
-  const newFiles = addedFiles.filter((f) => !previousFiles.includes(f));
-  const mergedFiles = [...previousFiles, ...newFiles];
 
-  // Update session contextPack
-  const newHash = createHash("sha256")
-    .update(mergedFiles.sort().join("\n"))
-    .digest("hex");
+  let enrichResult: { contextPackHash: string; addedFiles: string[]; totalFiles: number; hashChanged: boolean };
 
+  if (packRef && addedFiles.length > 0) {
+    // Persist updated pack to disk via the enrichContextPack helper
+    try {
+      enrichResult = await enrichContextPack({
+        packRef,
+        newFiles: addedFiles,
+        newSymbols: addedSymbols,
+      });
+    } catch {
+      // If disk persistence fails, fall back to in-memory merge
+      const newFiles = addedFiles.filter((f) => !previousFiles.includes(f));
+      const mergedFiles = [...previousFiles, ...newFiles];
+      const newHash = computePackHash(mergedFiles.sort().join("\n"));
+      enrichResult = {
+        contextPackHash: newHash,
+        addedFiles: newFiles,
+        totalFiles: mergedFiles.length,
+        hashChanged: newHash !== previousHash,
+      };
+    }
+  } else {
+    // No pack ref or no files to add — compute in-memory delta
+    const newFiles = addedFiles.filter((f) => !previousFiles.includes(f));
+    const mergedFiles = [...previousFiles, ...newFiles];
+    const newHash = computePackHash(mergedFiles.sort().join("\n"));
+    enrichResult = {
+      contextPackHash: newHash,
+      addedFiles: newFiles,
+      totalFiles: mergedFiles.length,
+      hashChanged: newHash !== previousHash,
+    };
+  }
+
+  // Update session contextPack with merged result
+  const mergedFiles = [...previousFiles, ...enrichResult.addedFiles];
   session.contextPack = {
-    ref: session.contextPack?.ref ?? `pack:${session.workId}`,
-    hash: newHash,
+    ref: packRef || `pack:${session.workId}`,
+    hash: enrichResult.contextPackHash,
     files: mergedFiles,
   };
 
@@ -141,11 +159,12 @@ export async function handleEscalate(
       escalationType,
       requestedEvidence,
       blockingReasons,
-      addedFiles: newFiles,
+      addedFiles: enrichResult.addedFiles,
       addedSymbols,
       previousFileCount: previousFiles.length,
-      newFileCount: mergedFiles.length,
-      hashChanged: newHash !== previousHash,
+      newFileCount: enrichResult.totalFiles,
+      hashChanged: enrichResult.hashChanged,
+      packPersistedToDisk: Boolean(packRef),
       turnCount: Object.values(session.actionCounts).reduce((a, b) => a + b, 0),
     },
   });
@@ -154,14 +173,14 @@ export async function handleEscalate(
   result.escalation = {
     acknowledged: true,
     packDelta: {
-      addedFiles: newFiles,
+      addedFiles: enrichResult.addedFiles,
       addedSymbols,
       previousFileCount: previousFiles.length,
-      newFileCount: mergedFiles.length,
-      hashChanged: newHash !== previousHash,
-      newHash,
+      newFileCount: enrichResult.totalFiles,
+      hashChanged: enrichResult.hashChanged,
+      newHash: enrichResult.contextPackHash,
     },
-    guidance: newFiles.length === 0
+    guidance: enrichResult.addedFiles.length === 0
       ? [
           {
             action: "try_specific_search",
@@ -172,12 +191,12 @@ export async function handleEscalate(
       : [
           {
             action: "read_new_files",
-            detail: `${newFiles.length} new file(s) added to pack. Use read_file_lines to examine them.`,
+            detail: `${enrichResult.addedFiles.length} new file(s) added to pack. Use read_file_lines to examine them.`,
           },
         ],
     sessionContext: {
       artifactsCollected: session.artifacts.length,
-      totalPackFiles: mergedFiles.length,
+      totalPackFiles: enrichResult.totalFiles,
       currentState: session.state,
     },
   };

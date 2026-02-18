@@ -86,6 +86,7 @@ export class IndexingService {
   private readonly routeParseNotes: string[] = [];
   private readonly templateRouterLinks: TemplateRouterLinkFact[] = [];
   private readonly routerOutletFiles = new Set<string>();
+  private indexedFilePaths: string[] = [];
   private indexedAt = "";
 
   constructor(private readonly config: GatewayConfig) {}
@@ -99,9 +100,11 @@ export class IndexingService {
     this.routeParseNotes.length = 0;
     this.templateRouterLinks.length = 0;
     this.routerOutletFiles.clear();
+    this.indexedFilePaths = [];
 
     const roots = resolveIngestionRoots(repoRoot, this.config);
     const files = await collectFilesAcrossRoots(roots, this.config.ingestion.excludes);
+    this.indexedFilePaths = files;
     for (const filePath of files) {
       try {
         const content = await readFile(filePath, "utf8");
@@ -177,6 +180,14 @@ export class IndexingService {
 
   getIndexedAt(): string {
     return this.indexedAt;
+  }
+
+  /**
+   * Returns the full list of file paths that were indexed during the last rebuild().
+   * These are repo-relative paths — suitable for populating contextPack.files.
+   */
+  getIndexedFilePaths(): string[] {
+    return [...this.indexedFilePaths];
   }
 
   /**

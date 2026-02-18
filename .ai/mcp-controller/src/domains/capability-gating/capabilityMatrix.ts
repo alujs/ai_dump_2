@@ -5,7 +5,7 @@ export function capabilitiesForState(state: RunState): string[] {
   if (state === "UNINITIALIZED") {
     return [...UNINITIALIZED_CAPABILITIES];
   }
-  if (state === "PLAN_ACCEPTED" || state === "EXECUTION_ENABLED") {
+  if (state === "PLAN_ACCEPTED") {
     return [...POST_PLAN_CAPABILITIES];
   }
   if (state === "BLOCKED_BUDGET") {
@@ -14,10 +14,10 @@ export function capabilitiesForState(state: RunState): string[] {
   if (state === "FAILED" || state === "COMPLETED") {
     return ["signal_task_complete"];
   }
-  // PLANNING and PLAN_REQUIRED both get pre-plan capabilities
+  // PLANNING gets pre-plan capabilities
   return [...PRE_PLAN_CAPABILITIES];
 }
 
 export function canExecuteMutation(state: RunState): boolean {
-  return state === "PLAN_ACCEPTED" || state === "EXECUTION_ENABLED";
+  return state === "PLAN_ACCEPTED";
 }

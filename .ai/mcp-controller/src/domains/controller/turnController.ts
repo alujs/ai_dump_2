@@ -4,7 +4,7 @@ import { MemoryService } from "../memory/memoryService";
 import { EventStore } from "../observability/eventStore";
 import { CollisionGuard } from "../patch-exec/collisionGuard";
 import { RecipeRegistry } from "../recipes/recipeRegistry";
-import { recommendedSubAgentSplits, selectStrategy, type StrategySelection } from "../strategy/strategySelector";
+import { recommendedSubAgentSplits, selectStrategy, type StrategySelection, type StrategyId } from "../strategy/strategySelector";
 import { ProofChainBuilder } from "../proof-chains/proofChainBuilder";
 import type { RunState, TurnRequest, TurnResponse } from "../../contracts/controller";
 import type { IndexingService } from "../indexing/indexingService";
@@ -107,12 +107,26 @@ export class TurnController {
 
     const mergedResult: Record<string, unknown> = { ...verbResult.result };
 
-    const finalState = verbResult.stateOverride ?? state;
+    // #15 fix: If budget is blocked, clamp state to BLOCKED_BUDGET unless terminal (COMPLETED/FAILED)
+    let finalState = verbResult.stateOverride ?? state;
+    if (budgetStatus.blocked && finalState !== "COMPLETED" && finalState !== "FAILED") {
+      finalState = "BLOCKED_BUDGET";
+    }
     trackRejections(session, verbResult.denyReasons);
+
+    // #12 fix: For initialize_work, use the handler's strategy (single source of truth)
+    // instead of the pre-computed envelope strategy that doesn't include overrides
+    const responseStrategy = (request.verb === "initialize_work" && mergedResult.strategy)
+      ? {
+          strategyId: (mergedResult.strategy as Record<string, unknown>).strategyId as StrategyId,
+          contextSignature: strategy.contextSignature,
+          reasons: strategy.reasons,
+        }
+      : strategy;
 
     const response = this.makeResponse({
       runSessionId, workId, agentId,
-      state: finalState, strategy,
+      state: finalState, strategy: responseStrategy,
       result: mergedResult,
       denyReasons: verbResult.denyReasons,
       budgetStatus, scopeWorktreeRoot: worktreeRoot(),
@@ -151,6 +165,19 @@ export class TurnController {
     worktreeRoot: string,
     memoryService?: MemoryService,
   ): Promise<VerbResult> {
+    /* ── Hard capability gate (Architecture v2 invariant #1 + #3) ── */
+    const allowed = capabilitiesForState(state);
+    if (!allowed.includes(verb)) {
+      return {
+        result: {
+          error: `Verb '${verb}' is not allowed in current run-state '${state}'. Allowed verbs for this state: [${allowed.join(", ")}]. Change to one of those or advance the run-state first.`,
+          allowedVerbs: allowed,
+          currentState: state,
+        },
+        denyReasons: ["PLAN_SCOPE_VIOLATION"],
+      };
+    }
+
     switch (verb) {
       case "initialize_work":
         return handleInitializeWork(args, session, {
@@ -185,17 +212,8 @@ export class TurnController {
       case "signal_task_complete":
         return handleSignalTaskComplete(args, session, this.eventStore, this.memoryService);
       default: {
-        const allowed = capabilitiesForState(state);
-        if (!allowed.includes(verb)) {
-          return {
-            result: {
-              error: `Verb '${verb}' is not allowed in current run-state '${state}'. Allowed verbs for this state: [${allowed.join(", ")}]. Change to one of those or advance the run-state first.`,
-              allowedVerbs: allowed,
-              currentState: state,
-            },
-            denyReasons: ["PLAN_SCOPE_VIOLATION"],
-          };
-        }
+        // Pre-gate already confirmed the verb is allowed in current state,
+        // so reaching here means the verb is valid but has no handler implementation.
         return {
           result: {
             error: `Verb '${verb}' is recognized and allowed in state '${state}' but has no handler implementation. This is a controller bug — report it. As a workaround, use a different verb from: [${allowed.join(", ")}].`,
@@ -347,7 +365,7 @@ export class TurnController {
 
         await this.memoryService.createFromFriction({
           trigger: "rejection_pattern",
-          phase: response.state === "EXECUTION_ENABLED" ? "execution" : "planning",
+          phase: response.state === "PLAN_ACCEPTED" ? "execution" : "planning",
           domainAnchorIds,
           rejectionCodes: [code],
           originStrategyId: response.knowledgeStrategy.strategyId,

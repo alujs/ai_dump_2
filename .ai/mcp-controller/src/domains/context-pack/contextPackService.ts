@@ -1,7 +1,7 @@
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { PACK_BLOCKED_COMMANDS, SCHEMA_VERSION } from "../../shared/constants";
-import { contextRoot } from "../../shared/fsPaths";
+import { workRoot } from "../../shared/fsPaths";
 import { writeText, readText } from "../../shared/fileStore";
 import type { PackInsufficiency } from "../../contracts/controller";
 import type { MemoryRecord } from "../../contracts/memoryRecord";
@@ -50,9 +50,9 @@ export interface ContextPackOutput {
 }
 
 export async function createContextPack(input: ContextPackInput): Promise<ContextPackOutput> {
-  const packDir = contextRoot(input.runSessionId, input.workId);
+  const packDir = workRoot(input.workId);
   const promptPath = path.join(packDir, "original_prompt.txt");
-  const contextPackRef = path.join(packDir, "context_pack.json");
+  const contextPackRef = path.join(packDir, "context-pack.json");
 
   // Verbatim prompt persistence is a hard invariant.
   await writeText(promptPath, input.originalPrompt);
@@ -162,7 +162,7 @@ export async function createContextPack(input: ContextPackInput): Promise<Contex
   };
 
   const hashSource = JSON.stringify(payloadBase);
-  const contextPackHash = createHash("sha256").update(hashSource).digest("hex");
+  const contextPackHash = computePackHash(hashSource);
   const payload = {
     ...payloadBase,
     header: {
@@ -343,7 +343,7 @@ function buildInsufficiency(
       detail: `Resolve ${item.anchorType} for ${item.requiredBy}`
     })),
     blockedCommands: [...PACK_BLOCKED_COMMANDS],
-    nextRequiredState: "PLAN_REQUIRED"
+    nextRequiredState: "PLANNING"
   };
 }
 
@@ -398,9 +398,16 @@ export async function enrichContextPack(input: EnrichContextPackInput): Promise<
   const addedFiles = input.newFiles.filter((f) => !normalizedExisting.has(f.replace(/\\/g, "/")));
   const mergedFiles = [...existingFiles, ...addedFiles];
 
-  // Recompute hash
-  const hashSource = JSON.stringify({ ...existingPayload, scope: { ...((existingPayload.scope as object) ?? {}), allowedFiles: mergedFiles } });
-  const contextPackHash = createHash("sha256").update(hashSource).digest("hex");
+  // Recompute hash using the canonical method: hash the full payload without the hash field
+  const updatedPayloadForHash = {
+    ...existingPayload,
+    scope: { ...((existingPayload.scope as object) ?? {}), allowedFiles: mergedFiles },
+  };
+  // Remove existing hash from header before hashing (mirrors createContextPack behavior)
+  const headerForHash = { ...((updatedPayloadForHash.header as object) ?? {}) } as Record<string, unknown>;
+  delete headerForHash.contextPackHash;
+  updatedPayloadForHash.header = headerForHash;
+  const contextPackHash = computePackHash(JSON.stringify(updatedPayloadForHash));
   const hashChanged = contextPackHash !== previousHash;
 
   // Update pack on disk
@@ -425,4 +432,13 @@ export async function enrichContextPack(input: EnrichContextPackInput): Promise<
     totalFiles: mergedFiles.length,
     hashChanged,
   };
+}
+
+/**
+ * Canonical hash computation for context packs.
+ * All pack hash operations MUST use this single function to ensure consistency.
+ * Input should be the JSON-stringified payload WITHOUT the hash field itself.
+ */
+export function computePackHash(source: string): string {
+  return createHash("sha256").update(source).digest("hex");
 }

@@ -3,6 +3,7 @@ import type { MemoryRecord } from "../../contracts/memoryRecord";
 import { validateChangeEvidencePolicy } from "../evidence-policy/evidencePolicyService";
 import { isSupportedAstCodemodId } from "../patch-exec/astCodemodCatalog";
 import type { EnforcementBundle, EphemeralPlanRule } from "./enforcementBundle";
+import { checkMigrationRuleCoverage } from "./enforcementBundle";
 
 export interface ValidationResult {
   ok: boolean;
@@ -63,6 +64,21 @@ export function validatePlanGraph(
 
   // Phase 7: Validate migration_rule_citation when strategy requires it
   validateMigrationRuleCitations(plan, rejectionCodes);
+
+  // Phase 7b: Enforcement-bundle-aware migration rule coverage (#29)
+  // Verifies cited migration rules match Neo4j-sourced rules for adp-* tags
+  if (enforcementBundle?.migrationRules?.length) {
+    const allPolicyRefs = plan.nodes
+      .filter((n): n is ChangePlanNode => n.kind === "change")
+      .flatMap((n) => n.policyRefs);
+    const allTargetTags = plan.nodes
+      .filter((n): n is ChangePlanNode => n.kind === "change")
+      .flatMap((n) => (n as any).targetTags ?? []);
+    const coverage = checkMigrationRuleCoverage(allPolicyRefs, allTargetTags, enforcementBundle.migrationRules);
+    if (!coverage.covered) {
+      rejectionCodes.push("PLAN_MIGRATION_RULE_MISSING");
+    }
+  }
 
   return {
     ok: rejectionCodes.length === 0,
@@ -160,12 +176,11 @@ function validateNodes(
           rejectionCodes.push("PLAN_MISSING_REQUIRED_FIELDS");
           break;
         }
-        if (
-          node.requestedEvidence.some(
-            (item) => item.type !== "artifact_fetch" && item.type !== "graph_expand" && item.type !== "pack_rebuild"
-          )
-        ) {
-          rejectionCodes.push("PLAN_MISSING_REQUIRED_FIELDS");
+        {
+          const validEscalateTypes = new Set(["artifact_fetch", "graph_expand", "pack_rebuild", "scope_expand"]);
+          if (node.requestedEvidence.some((item) => !validEscalateTypes.has(item.type))) {
+            rejectionCodes.push("PLAN_MISSING_REQUIRED_FIELDS");
+          }
         }
         break;
       case "side_effect":

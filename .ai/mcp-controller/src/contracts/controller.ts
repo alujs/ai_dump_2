@@ -3,9 +3,7 @@ import type { PlanGraphDocument } from "./planGraph";
 export type RunState =
   | "UNINITIALIZED"
   | "PLANNING"
-  | "PLAN_REQUIRED"
   | "PLAN_ACCEPTED"
-  | "EXECUTION_ENABLED"
   | "BLOCKED_BUDGET"
   | "FAILED"
   | "COMPLETED";
@@ -35,7 +33,7 @@ export interface PackInsufficiency {
     detail: string;
   }>;
   blockedCommands: string[];
-  nextRequiredState: "PLAN_REQUIRED";
+  nextRequiredState: "PLANNING";
 }
 
 export interface TurnResponse {

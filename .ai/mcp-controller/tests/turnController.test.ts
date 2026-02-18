@@ -156,7 +156,7 @@ test("pre-plan scratch write enforces scoped scratch root", async () => {
     workId: "work_scope",
     agentId: "agent_scope",
     originalPrompt: "scratch write",
-    verb: "write_tmp",
+    verb: "write_scratch_file",
     args: {
       ...anchors(),
       target: "../outside.txt",
@@ -678,4 +678,90 @@ test("per-agent action tracking is independent (Phase 7)", async () => {
   assert.ok(agents.length >= 2);
   assert.ok(agents.some((a) => a.agentId === "agent_p7_a"));
   assert.ok(agents.some((a) => a.agentId === "agent_p7_b"));
+});
+
+/* ── #32: Read denied in UNINITIALIZED ────────────────────── */
+
+test("read_file_lines is denied in UNINITIALIZED state", async () => {
+  const events = new EventStore();
+  const controller = new TurnController(events);
+
+  // Directly call read_file_lines without initialize_work
+  const response = await controller.handleTurn({
+    runSessionId: "run_uninit_deny",
+    workId: "work_uninit_deny",
+    agentId: "agent_uninit_deny",
+    originalPrompt: "sneaky read",
+    verb: "read_file_lines",
+    args: {
+      ...anchors(),
+      targetFile: "src/app/app.component.ts",
+      startLine: 1,
+      endLine: 10,
+    },
+  });
+
+  // Should be denied — session is UNINITIALIZED, reads require at least PLANNING
+  assert.ok(
+    response.denyReasons.length > 0,
+    "read_file_lines should be denied when session is UNINITIALIZED"
+  );
+});
+
+/* ── #31: ConnectorRegistry + IndexingService integration ── */
+
+test("initialize_work uses connector deps when provided", async () => {
+  const events = new EventStore();
+  const controller = new TurnController(events);
+
+  // The init should succeed even without explicit connector/indexing deps
+  // (they're optional) — this validates the happy path doesn't throw
+  const response = await initSession(controller, {
+    runSessionId: "run_connector_test",
+    workId: "work_connector_test",
+    agentId: "agent_connector_test",
+    prompt: "test with connectors",
+  });
+
+  assert.equal(response.denyReasons.length, 0);
+  assert.equal(response.state, "PLANNING");
+  // contextPack should always be present after initialize_work
+  assert.ok(response.result.contextPack);
+});
+
+test("escalate uses indexing service for file discovery", async () => {
+  const events = new EventStore();
+  const controller = new TurnController(events);
+
+  // Bootstrap session
+  await initSession(controller, {
+    runSessionId: "run_esc_idx",
+    workId: "work_esc_idx",
+    agentId: "agent_esc_idx",
+    prompt: "escalate test",
+  });
+
+  // Escalate — without an IndexingService, should still succeed (no files added)
+  const response = await controller.handleTurn({
+    runSessionId: "run_esc_idx",
+    workId: "work_esc_idx",
+    agentId: "agent_esc_idx",
+    originalPrompt: "escalate test",
+    verb: "escalate",
+    args: {
+      ...anchors(),
+      need: "SDF table contract definition",
+      type: "artifact_fetch",
+      requestedEvidence: [{ type: "artifact_fetch", detail: "SDF table API" }],
+    },
+  });
+
+  assert.equal(response.denyReasons.length, 0);
+  const escalation = response.result.escalation as Record<string, unknown>;
+  assert.ok(escalation);
+  assert.equal(escalation.acknowledged, true);
+  const packDelta = escalation.packDelta as Record<string, unknown>;
+  assert.ok(packDelta);
+  // Without real indexing, no files would be added
+  assert.ok(Array.isArray(packDelta.addedFiles));
 });

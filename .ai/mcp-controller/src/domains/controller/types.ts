@@ -1,6 +1,7 @@
 import type { RunState } from "../../contracts/controller";
 import type { PlanGraphDocument } from "../../contracts/planGraph";
 import type { ConnectorArtifact } from "../connectors/connectorRegistry";
+import type { EnforcementBundle } from "../plan-graph/enforcementBundle";
 import type { ScopeAllowlist } from "../worktree-scope/worktreeScopeService";
 
 export interface SessionState {
@@ -25,6 +26,8 @@ export interface SessionState {
     completedNodes: number;
     completedNodeIds: string[];
   };
+  /** Enforcement bundle computed from memories + graph policies during initialize_work */
+  enforcementBundle?: EnforcementBundle;
 }
 
 export interface VerbResult {

@@ -2,13 +2,13 @@ import type { RunState } from "../../../contracts/controller";
 import type { PlanGraphDocument } from "../../../contracts/planGraph";
 import type { VerbResult, SessionState } from "../types";
 import { validatePlanGraph } from "../../plan-graph/planGraphValidator";
-import type { EnforcementBundle } from "../../plan-graph/enforcementBundle";
 import type { MemoryService } from "../../memory/memoryService";
 import { loadScopeAllowlist } from "../../worktree-scope/worktreeScopeService";
 import { repoSnapshotId } from "../../../infrastructure/git/repoSnapshot";
 import { normalizeSafePath, scratchRoot } from "../../../shared/fsPaths";
 import { writeText } from "../../../shared/fileStore";
 import { validatePlanWorktreeRoot } from "../turnHelpers";
+import { computePackHash } from "../../context-pack/contextPackService";
 
 /**
  * Maps each plan rejection code to a concrete, actionable fix instruction.
@@ -76,8 +76,8 @@ export async function handleSubmitPlan(
     }
   }
 
-  // Phase 5: Compute enforcement bundle if session has one cached
-  const enforcementBundle = (session as SessionState & { enforcementBundle?: EnforcementBundle }).enforcementBundle;
+  // Use enforcement bundle computed during initialize_work (now a proper SessionState field)
+  const enforcementBundle = session.enforcementBundle;
 
   const validation = validatePlanGraph(planGraph, activeMemories, enforcementBundle);
   if (!validation.ok) {
@@ -97,28 +97,46 @@ export async function handleSubmitPlan(
         .filter((r) => !r.satisfied)
         .map((r) => ({ sourceNodeId: r.sourceNodeId, condition: r.condition, denyCode: r.denyCode }));
     }
-    return { result, denyReasons, stateOverride: "PLAN_REQUIRED" };
+    return { result, denyReasons, stateOverride: "PLANNING" };
   }
 
+  // #25: Verify contextPackHash — plan must reference the current pack snapshot
+  if (session.contextPack?.hash) {
+    const planPackHash = planGraph.contextPackHash;
+    if (planPackHash && planPackHash !== session.contextPack.hash) {
+      denyReasons.push("PLAN_SCOPE_VIOLATION");
+      result.error = `Plan contextPackHash ('${planPackHash}') does not match current session pack hash ('${session.contextPack.hash}'). The context pack may have been updated via escalate since the plan was drafted. Re-fetch the context pack and resubmit.`;
+      return { result, denyReasons, stateOverride: "PLANNING" };
+    }
+  }
+
+  /* ── Identity check (Architecture v2: workId is the permission key) ── */
+  // workId and runSessionId MUST match — they scope the permission boundary.
+  // agentId is tracking-only — sub-agents sharing a workId can submit plans.
   if (
     planGraph.workId !== session.workId ||
-    planGraph.agentId !== session.agentId ||
     planGraph.runSessionId !== session.runSessionId
   ) {
     denyReasons.push("PLAN_SCOPE_VIOLATION");
-    result.error = "Plan envelope identity fields do not match the current session. The planGraph.workId, planGraph.agentId, and planGraph.runSessionId must exactly match the values from this session.";
+    result.error = "Plan envelope workId and runSessionId must match the current session. "
+      + "(agentId may differ — sub-agents sharing a workId are allowed to submit plans.)";
     result.mismatch = {
-      expected: { workId: session.workId, agentId: session.agentId, runSessionId: session.runSessionId },
-      received: { workId: planGraph.workId, agentId: planGraph.agentId, runSessionId: planGraph.runSessionId },
+      expected: { workId: session.workId, runSessionId: session.runSessionId },
+      received: { workId: planGraph.workId, runSessionId: planGraph.runSessionId },
     };
-    return { result, denyReasons, stateOverride: "PLAN_REQUIRED" };
+    return { result, denyReasons, stateOverride: "PLANNING" };
+  }
+
+  // Soft-log agentId mismatch for observability (not a hard gate)
+  if (planGraph.agentId !== session.agentId) {
+    result.agentIdNote = `Plan submitted by agent '${planGraph.agentId}' into session owned by '${session.agentId}'. This is allowed for sub-agent collaboration.`;
   }
 
   const worktreeCheck = validatePlanWorktreeRoot(planGraph.worktreeRoot, session.workId);
   if (!worktreeCheck.ok) {
     denyReasons.push("PLAN_SCOPE_VIOLATION");
     result.planValidationError = worktreeCheck.reason;
-    return { result, denyReasons, stateOverride: "PLAN_REQUIRED" };
+    return { result, denyReasons, stateOverride: "PLANNING" };
   }
 
   session.planGraph = planGraph;
@@ -162,7 +180,7 @@ export async function handleWriteTmp(
     result.writeTmp = { file: safe, bytes: Buffer.byteLength(content, "utf8") };
   } catch (error) {
     denyReasons.push("PLAN_SCOPE_VIOLATION");
-    result.error = `write_tmp failed: ${error instanceof Error ? error.message : "path escapes scratch scope"}. Ensure args.target is a relative path within the work scratch directory. Absolute paths and '..' traversals are forbidden.`;
+    result.error = `write_scratch_file failed: ${error instanceof Error ? error.message : "path escapes scratch scope"}. Ensure args.target is a relative path within the work scratch directory. Absolute paths and '..' traversals are forbidden.`;
   }
 
   return { result, denyReasons };

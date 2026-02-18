@@ -46,7 +46,7 @@ export interface ValidatePlanNode extends BasePlanNode {
 export interface EscalatePlanNode extends BasePlanNode {
   kind: "escalate";
   requestedEvidence: Array<{
-    type: "artifact_fetch" | "graph_expand" | "pack_rebuild";
+    type: "artifact_fetch" | "graph_expand" | "pack_rebuild" | "scope_expand";
     detail: string;
   }>;
   blockingReasons: string[];
