@@ -27,7 +27,8 @@
     "verify:isolation": "node .ai/mcp-controller/scripts/verify-isolation.mjs",
     "graphops:check": "node --import tsx .ai/mcp-controller/src/domains/graph-ops/cli.ts check",
     "graphops:sync": "node --import tsx .ai/mcp-controller/src/domains/graph-ops/cli.ts sync",
-    "graphops:export": "node --import tsx .ai/mcp-controller/src/domains/graph-ops/cli.ts export"
+    "graphops:export": "node --import tsx .ai/mcp-controller/src/domains/graph-ops/cli.ts export",
+    "graphops:seed-facts": "node --import tsx .ai/mcp-controller/src/domains/graph-ops/cli.ts seed-facts --sync"
   },
   "dependencies": {
     "@angular/compiler": "^14.3.0",

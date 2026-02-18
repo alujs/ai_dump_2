@@ -60,7 +60,7 @@ export async function handleInitializeWork(
 
   /* ── 1b. Phase 6: Ingest .ai/inbox/ files ──────────────── */
   const inboxDir = path.join(resolveTargetRepoRoot(), ".ai", "inbox");
-  const inboxArtifacts = ingestInboxFiles(inboxDir, path.join(workDir, "attachments"));
+  const inboxArtifacts = ingestInboxFiles(inboxDir, path.join(workDir, "attachments"), session.artifacts);
   for (const artifact of inboxArtifacts) {
     session.artifacts.push(artifact);
   }
@@ -84,7 +84,7 @@ export async function handleInitializeWork(
 
   /* ── 3. Query active memories SECOND ────────────────────── */
   const worktreeRoot = resolveTargetRepoRoot();
-  const scopeFiles = listAllowedFiles(session.workId, session.scopeAllowlist, worktreeRoot);
+  let scopeFiles = listAllowedFiles(session.workId, session.scopeAllowlist, worktreeRoot);
   const activeMemories = await deps.memoryService.findActiveForAnchors(
     scopeFiles.slice(0, 50).map((f) => {
       const parts = f.replace(/\\/g, "/").split("/");
@@ -215,6 +215,28 @@ export async function handleInitializeWork(
 
   // Extract raw Jira ticket from session artifacts
   const rawJiraTicket = extractRawJiraTicket(session.artifacts);
+
+  /* ── 6b. Enrich scope from retrieval lanes (v2: start narrow, grow from evidence) ── */
+  if (scopeFiles.length === 0) {
+    const retrievedFiles = new Set<string>();
+    for (const hit of retrievalLanes.lexicalLane) {
+      const fp = hit.filePath as string | undefined;
+      if (fp) retrievedFiles.add(fp);
+    }
+    for (const hit of retrievalLanes.symbolLane) {
+      const fp = hit.filePath as string | undefined;
+      if (fp) retrievedFiles.add(fp);
+    }
+    // Also include schema links as always-accessible files
+    const schemaLinks = [
+      ".ai/config/schema.json",
+      "src/contracts/controller.ts",
+      "src/contracts/planGraph.ts",
+      ".ai/mcp-controller/specs/ast_codemod_policy.md",
+    ];
+    for (const sl of schemaLinks) retrievedFiles.add(sl);
+    scopeFiles = [...retrievedFiles];
+  }
 
   const packOutput = await createContextPack({
     runSessionId: session.runSessionId,
@@ -469,20 +491,40 @@ function applyStrategySignalOverrides(
 function ingestInboxFiles(
   inboxDir: string,
   attachmentsDir: string,
+  existingArtifacts?: Array<{ metadata?: Record<string, unknown> }>,
 ): Array<{ source: string; ref: string; summary: string; metadata: Record<string, unknown> }> {
   const artifacts: Array<{ source: string; ref: string; summary: string; metadata: Record<string, unknown> }> = [];
 
   if (!existsSync(inboxDir)) return artifacts;
 
+  // Build set of already-ingested content hashes to deduplicate across sessions
+  const alreadyIngested = new Set<string>();
+  if (existingArtifacts) {
+    for (const a of existingArtifacts) {
+      const h = a.metadata?.contentHash;
+      if (typeof h === "string") alreadyIngested.add(h);
+    }
+  }
+
   try {
     const entries = readdirSync(inboxDir, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isFile()) continue;
+      // Skip already-processed files
+      if (entry.name.endsWith(".processed")) continue;
 
       const sourcePath = path.join(inboxDir, entry.name);
-      const destPath = path.join(attachmentsDir, entry.name);
 
       try {
+        const { readFileSync, renameSync } = require("node:fs");
+        const content = readFileSync(sourcePath);
+        const contentHash = createHash("sha256").update(content).digest("hex");
+
+        // Skip if content already ingested (dedupe by hash)
+        if (alreadyIngested.has(contentHash)) continue;
+        alreadyIngested.add(contentHash);
+
+        const destPath = path.join(attachmentsDir, entry.name);
         copyFileSync(sourcePath, destPath);
         const stats = statSync(sourcePath);
 
@@ -495,11 +537,17 @@ function ingestInboxFiles(
             copiedTo: destPath,
             fileName: entry.name,
             sizeBytes: stats.size,
+            contentHash,
             ingestedAt: new Date().toISOString(),
           },
         });
+
+        // Consume: rename to .processed so next initialize_work won't re-ingest
+        try {
+          renameSync(sourcePath, `${sourcePath}.processed`);
+        } catch { /* rename failure is non-fatal — dedupe hash guards re-ingestion */ }
       } catch {
-        // Individual file copy failures are non-fatal
+        // Individual file read/copy failures are non-fatal
       }
     }
   } catch {

@@ -10,6 +10,37 @@ import { normalizeSafePath, scratchRoot } from "../../../shared/fsPaths";
 import { writeText } from "../../../shared/fileStore";
 import { validatePlanWorktreeRoot } from "../turnHelpers";
 
+/**
+ * Maps each plan rejection code to a concrete, actionable fix instruction.
+ * This is what the agent sees — it should tell them exactly what to change.
+ */
+function planRejectionFix(code: string): string {
+  switch (code) {
+    case "PLAN_MISSING_REQUIRED_FIELDS":
+      return "One or more required fields are empty. Ensure every node has: nodeId, dependsOn[], atomicityBoundary (with inScopeAcceptanceCriteriaIds, inScopeModules), expectedFailureSignatures[]. Change nodes also need: operation, targetFile, whyThisFile, editIntent, escalateIf[], citations[], codeEvidence[], artifactRefs[], verificationHooks[].";
+    case "PLAN_NOT_ATOMIC":
+      return "Graph integrity issue: either duplicate nodeIds, a dependency cycle, dangling dependsOn references, or a change node has no corresponding validate node with mapsToNodeIds pointing to it. Every change node needs a validate node.";
+    case "PLAN_SCOPE_VIOLATION":
+      return "A change node references targetSymbols that are empty (and this isn't a 'create' + 'symbol-creation' intent). Add the target symbols this change affects.";
+    case "PLAN_STRATEGY_MISMATCH":
+      return "knowledgeStrategyReasons is empty or has entries missing .reason or .evidenceRef. Each reason must have both fields populated.";
+    case "PLAN_EVIDENCE_INSUFFICIENT":
+      return "Change node needs at least 2 distinct sources across citations[], codeEvidence[], and policyRefs[]. If you only have 1 source, set lowEvidenceGuard=true, uncertaintyNote, and requiresHumanReview=true.";
+    case "PLAN_VERIFICATION_WEAK":
+      return "Validate node is missing verificationHooks[], mapsToNodeIds[], or successCriteria. All three are required.";
+    case "PLAN_POLICY_VIOLATION":
+      return "A codemod citation references an unsupported codemod ID. Check the citation format: 'codemod:<id>@<version>' and ensure the codemod ID is in the supported catalog.";
+    case "EXEC_UNGATED_SIDE_EFFECT":
+      return "side_effect node needs sideEffectType, sideEffectPayloadRef, commitGateId, and must depend on at least one validate node.";
+    case "PLAN_MISSING_ARTIFACT_REF":
+      return "A change node cites an attachment (inbox:* or attachment:*) but the same ref is not in artifactRefs[]. Add matching entries to artifactRefs.";
+    case "PLAN_MIGRATION_RULE_MISSING":
+      return "Strategy is migration_adp_to_sdf but a change node has no MigrationRule citation. Add a policyRef or citation with prefix 'migration:' (e.g., 'migration:MR-001').";
+    default:
+      return `Rejection code '${code}' — check the plan schema and resubmit.`;
+  }
+}
+
 export async function handleSubmitPlan(
   args: Record<string, unknown> | undefined,
   session: SessionState,
@@ -51,8 +82,21 @@ export async function handleSubmitPlan(
   const validation = validatePlanGraph(planGraph, activeMemories, enforcementBundle);
   if (!validation.ok) {
     denyReasons.push(...validation.rejectionCodes);
-    result.error = "Plan graph validation failed. See result.validationDiagnostics for the specific issues to fix.";
-    result.validationDiagnostics = validation.memoryRuleResults ?? validation.graphPolicyResults ?? validation.rejectionCodes;
+    result.error = `Plan rejected: ${validation.rejectionCodes.length} issue(s). See result.fixes for what to change.`;
+    result.fixes = validation.rejectionCodes.map((code) => ({
+      code,
+      fix: planRejectionFix(code),
+    }));
+    if (validation.memoryRuleResults?.some((r) => !r.satisfied)) {
+      result.failedMemoryRules = validation.memoryRuleResults
+        .filter((r) => !r.satisfied)
+        .map((r) => ({ memoryId: r.memoryId, condition: r.condition, denyCode: r.denyCode }));
+    }
+    if (validation.graphPolicyResults?.some((r) => !r.satisfied)) {
+      result.failedGraphPolicies = validation.graphPolicyResults
+        .filter((r) => !r.satisfied)
+        .map((r) => ({ sourceNodeId: r.sourceNodeId, condition: r.condition, denyCode: r.denyCode }));
+    }
     return { result, denyReasons, stateOverride: "PLAN_REQUIRED" };
   }
 

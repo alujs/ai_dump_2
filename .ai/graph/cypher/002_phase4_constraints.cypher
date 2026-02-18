@@ -24,3 +24,9 @@ FOR (n:ComponentIntent) REQUIRE n.id IS UNIQUE;
 
 CREATE CONSTRAINT macro_constraint_id_unique IF NOT EXISTS
 FOR (n:MacroConstraint) REQUIRE n.id IS UNIQUE;
+
+CREATE CONSTRAINT file_id_unique IF NOT EXISTS
+FOR (n:File) REQUIRE n.id IS UNIQUE;
+
+CREATE CONSTRAINT angular_route_id_unique IF NOT EXISTS
+FOR (n:AngularRoute) REQUIRE n.id IS UNIQUE;

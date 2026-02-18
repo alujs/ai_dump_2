@@ -5,7 +5,8 @@ import type { GatewayConfig } from "../../config/types";
 import { LexicalIndex, type LexicalHit } from "../../infrastructure/lexical-index/lexicalIndex";
 import { resolveRepoRoot, resolveTargetRepoRoot } from "../../shared/fsPaths";
 import { replaceWithGuard } from "../../shared/replaceGuard";
-import { createTsMorphProject, parseAngularTemplate, parseAngularTemplateUsage } from "./astTooling";
+import { createTsMorphProject, parseAngularTemplate, parseAngularTemplateUsage, parseAngularTemplateNav, type TemplateNavFacts } from "./astTooling";
+import { parseRouteConfig, isLikelyRouteFile, type ParsedRoute, type RouteParseResult } from "./routeParser";
 
 export interface SymbolHit {
   symbol: string;
@@ -39,6 +40,18 @@ export interface IndexingFailure {
   reason: string;
 }
 
+/** Route fact re-exported so consumers don't need to import routeParser directly */
+export type { ParsedRoute } from "./routeParser";
+
+/** Template-level navigation fact: routerLink reference found in a template */
+export interface TemplateRouterLinkFact {
+  routePath: string;
+  filePath: string;
+  line: number;
+  hostTag: string;
+  isBound: boolean;
+}
+
 const HARD_EXCLUDED_PATH_SEGMENTS = new Set([
   "node_modules",
   "dist",
@@ -69,6 +82,10 @@ export class IndexingService {
   private readonly symbolMap = new Map<string, SymbolHit[]>();
   private readonly failures: IndexingFailure[] = [];
   private readonly templateUsageFacts: TemplateUsageFact[] = [];
+  private readonly parsedRoutes: ParsedRoute[] = [];
+  private readonly routeParseNotes: string[] = [];
+  private readonly templateRouterLinks: TemplateRouterLinkFact[] = [];
+  private readonly routerOutletFiles = new Set<string>();
   private indexedAt = "";
 
   constructor(private readonly config: GatewayConfig) {}
@@ -78,6 +95,10 @@ export class IndexingService {
     this.symbolMap.clear();
     this.failures.length = 0;
     this.templateUsageFacts.length = 0;
+    this.parsedRoutes.length = 0;
+    this.routeParseNotes.length = 0;
+    this.templateRouterLinks.length = 0;
+    this.routerOutletFiles.clear();
 
     const roots = resolveIngestionRoots(repoRoot, this.config);
     const files = await collectFilesAcrossRoots(roots, this.config.ingestion.excludes);
@@ -96,6 +117,20 @@ export class IndexingService {
           // Phase 4: Extract component usage facts from templates
           const usageFacts = parseAngularTemplateUsage(content, filePath);
           this.templateUsageFacts.push(...usageFacts);
+          // Phase 5: Extract navigation facts (routerLink, router-outlet)
+          const navFacts = parseAngularTemplateNav(content, filePath);
+          if (navFacts.hasRouterOutlet) {
+            this.routerOutletFiles.add(filePath);
+          }
+          for (const link of navFacts.routerLinks) {
+            this.templateRouterLinks.push({
+              routePath: link.routePath,
+              filePath,
+              line: link.line,
+              hostTag: link.hostTag,
+              isBound: link.isBound,
+            });
+          }
         }
       } catch (error) {
         this.failures.push({
@@ -106,6 +141,7 @@ export class IndexingService {
     }
 
     await this.rebuildSymbolIndex(repoRoot, files.filter((item) => item.endsWith(".ts") || item.endsWith(".js")));
+    await this.rebuildRouteIndex(repoRoot, files.filter((item) => item.endsWith(".ts")));
     this.indexedAt = new Date().toISOString();
   }
 
@@ -176,6 +212,30 @@ export class IndexingService {
     return this.templateUsageFacts.slice(0, limit);
   }
 
+  /**
+   * Phase 5: Returns parsed Angular route definitions.
+   * Includes full path tree, lazy-load targets, guards, and nesting info.
+   */
+  getParsedRoutes(): ParsedRoute[] {
+    return [...this.parsedRoutes];
+  }
+
+  /**
+   * Phase 5: Returns routerLink references found in templates.
+   * These are the template-side references to route paths.
+   */
+  getTemplateRouterLinks(limit = 2000): TemplateRouterLinkFact[] {
+    return this.templateRouterLinks.slice(0, limit);
+  }
+
+  /**
+   * Phase 5: Returns file paths containing <router-outlet>.
+   * These files host child route rendering.
+   */
+  getRouterOutletFiles(): string[] {
+    return [...this.routerOutletFiles];
+  }
+
   private async rebuildSymbolIndex(repoRoot: string, files: string[]): Promise<void> {
     const project = createTsMorphProject(resolveTsConfigPath(repoRoot));
     for (const filePath of files) {
@@ -207,6 +267,38 @@ export class IndexingService {
         this.failures.push({
           filePath,
           reason: error instanceof Error ? error.message : "SYMBOL_INDEX_FAILED"
+        });
+      }
+    }
+  }
+
+  /**
+   * Phase 5: Parse route configuration files.
+   * Scans .ts files for Angular route definitions (Routes arrays, provideRouter, RouterModule).
+   */
+  private async rebuildRouteIndex(repoRoot: string, tsFiles: string[]): Promise<void> {
+    const project = createTsMorphProject(resolveTsConfigPath(repoRoot));
+
+    for (const filePath of tsFiles) {
+      try {
+        // Quick content check to avoid parsing every .ts file with ts-morph
+        const content = await readFile(filePath, "utf8");
+        if (!isLikelyRouteFile(filePath, content)) continue;
+
+        const sourceFile = project.addSourceFileAtPathIfExists(filePath);
+        if (!sourceFile) continue;
+
+        const result = parseRouteConfig(sourceFile);
+        if (result.routes.length > 0) {
+          this.parsedRoutes.push(...result.routes);
+        }
+        if (result.notes.length > 0) {
+          this.routeParseNotes.push(...result.notes);
+        }
+      } catch (error) {
+        this.failures.push({
+          filePath,
+          reason: error instanceof Error ? error.message : "ROUTE_INDEX_FAILED",
         });
       }
     }

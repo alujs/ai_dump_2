@@ -91,6 +91,8 @@ export class TurnController {
         denyReasons: ["BUDGET_THRESHOLD_EXCEEDED"],
         budgetStatus, scopeWorktreeRoot: worktreeRoot(),
         session,
+        verb: request.verb,
+        previousState: session.state,
       });
       trackRejections(session, response.denyReasons);
       session.state = "BLOCKED_BUDGET";
@@ -115,6 +117,8 @@ export class TurnController {
       denyReasons: verbResult.denyReasons,
       budgetStatus, scopeWorktreeRoot: worktreeRoot(),
       session,
+      verb: request.verb,
+      previousState: state,
     });
 
     session.state = finalState;
@@ -246,8 +250,18 @@ export class TurnController {
     outcome?: "pack_insufficient";
     packInsufficiency?: TurnResponse["packInsufficiency"];
     session?: SessionState;
+    verb?: string;
+    previousState?: RunState;
   }): TurnResponse {
     const caps = capabilitiesForState(input.state);
+
+    // High-signal: only include full verbDescriptions on initialize_work
+    // and state transitions — subsequent same-state turns don't need the catalog repeated
+    const stateChanged = input.previousState !== undefined && input.previousState !== input.state;
+    const isInit = input.verb === "initialize_work";
+    const verbDescriptions = (isInit || stateChanged)
+      ? verbDescriptionsForCapabilities(caps)
+      : {};
 
     // Compute progress from session's planGraphProgress
     const pgProgress = input.session?.planGraphProgress;
@@ -279,7 +293,7 @@ export class TurnController {
       state: input.state,
       outcome: input.outcome,
       capabilities: caps,
-      verbDescriptions: verbDescriptionsForCapabilities(caps),
+      verbDescriptions,
       scope: { worktreeRoot: input.scopeWorktreeRoot, scratchRoot: scratchRoot(input.workId) },
       result: input.result,
       denyReasons: input.denyReasons,
@@ -432,6 +446,13 @@ function deriveSuggestedAction(
       verb: "escalate",
       reason: "Your plan was denied because it lacks sufficient evidence (minimum 2 distinct sources required). Call escalate to request more context.",
       args: { need: "More evidence sources needed", type: "artifact_fetch" },
+    };
+  }
+  if (denyReasons.includes("PLAN_MIGRATION_RULE_MISSING")) {
+    return {
+      verb: "escalate",
+      reason: "Migration strategy requires every change node to cite a MigrationRule in policyRefs (prefix 'migration:'). Add migration rule citations or escalate with type='artifact_fetch' to find the applicable MigrationRule.",
+      args: { need: "MigrationRule citation for change nodes", type: "artifact_fetch" },
     };
   }
   if (denyReasons.includes("BUDGET_THRESHOLD_EXCEEDED")) {

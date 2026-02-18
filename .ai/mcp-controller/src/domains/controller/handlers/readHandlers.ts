@@ -120,9 +120,20 @@ export async function handleReadSymbol(
 
   // Pack-scope filter: only return symbols from contextPack files
   if (session?.contextPack) {
+    const unfilteredCount = matches.length;
     matches = matches.filter((m: { filePath?: string }) =>
       m.filePath ? isInPack(m.filePath, session) : true
     );
+    const filteredOut = unfilteredCount - matches.length;
+    if (matches.length === 0 && filteredOut > 0) {
+      denyReasons.push("PACK_SCOPE_VIOLATION");
+      result.error = `Symbol '${symbol}' found in ${filteredOut} file(s) but none are in the contextPack. Call 'escalate' with { need: 'symbol ${symbol}', type: 'scope_expand' } to add the relevant files.`;
+      result.filteredOutCount = filteredOut;
+      return { result, denyReasons };
+    }
+    if (filteredOut > 0) {
+      result.packFilterNote = `${filteredOut} result(s) outside pack scope were omitted.`;
+    }
   }
 
   result.readSymbol = { symbol, matches };
@@ -155,9 +166,20 @@ export async function handleGrepLexeme(
 
   // Pack-scope filter: only return hits from contextPack files
   if (session?.contextPack) {
+    const unfilteredCount = hits.length;
     hits = hits.filter((h: { filePath?: string }) =>
       h.filePath ? isInPack(h.filePath, session) : true
     );
+    const filteredOut = unfilteredCount - hits.length;
+    if (hits.length === 0 && filteredOut > 0) {
+      denyReasons.push("PACK_SCOPE_VIOLATION");
+      result.error = `Query '${query}' matched ${filteredOut} file(s) but none are in the contextPack. Call 'escalate' with { need: '${query}', type: 'scope_expand' } to add the relevant files.`;
+      result.filteredOutCount = filteredOut;
+      return { result, denyReasons };
+    }
+    if (filteredOut > 0) {
+      result.packFilterNote = `${filteredOut} result(s) outside pack scope were omitted.`;
+    }
   }
 
   result.grepLexeme = { query, hits };
@@ -176,6 +198,13 @@ export async function handleListDir(
     denyReasons.push("PLAN_MISSING_REQUIRED_FIELDS");
     result.error = "args.targetDir is required but was missing or empty. Supply a relative directory path within the worktree (e.g., 'src/app/profile').";
     result.missingFields = ["targetDir"];
+    return { result, denyReasons };
+  }
+
+  /* ── Pack-scope check for directory listing ────────────── */
+  if (!isInPack(targetDir, session)) {
+    denyReasons.push("PACK_SCOPE_VIOLATION");
+    result.error = `Directory '${targetDir}' is not in the contextPack. Call 'escalate' with { need: '${targetDir}', type: 'scope_expand' } to add it.`;
     return { result, denyReasons };
   }
 
@@ -249,12 +278,24 @@ export async function handleReadNeighbors(
 
   // Pack-scope filter: only return neighbors within contextPack files
   if (session?.contextPack) {
+    const preSymbolCount = symbolMatches.length;
+    const preLexicalCount = lexicalMatches.length;
     symbolMatches = symbolMatches.filter((m: { filePath?: string }) =>
       m.filePath ? isInPack(m.filePath, session) : true
     );
     lexicalMatches = lexicalMatches.filter((h: { filePath?: string }) =>
       h.filePath ? isInPack(h.filePath, session) : true
     );
+    const totalFiltered = (preSymbolCount - symbolMatches.length) + (preLexicalCount - lexicalMatches.length);
+    if (symbolMatches.length === 0 && lexicalMatches.length === 0 && totalFiltered > 0) {
+      denyReasons.push("PACK_SCOPE_VIOLATION");
+      result.error = `Neighbors for '${symbol || targetFile || query}' found in ${totalFiltered} result(s) but all are outside the contextPack. Call 'escalate' with { need: '${symbol || targetFile || query}', type: 'graph_expand' } to discover and add the relevant files.`;
+      result.filteredOutCount = totalFiltered;
+      return { result, denyReasons };
+    }
+    if (totalFiltered > 0) {
+      result.packFilterNote = `${totalFiltered} neighbor result(s) outside pack scope were omitted.`;
+    }
   }
 
   result.readNeighbors = { anchor: symbol || targetFile || query, symbolMatches, lexicalMatches };

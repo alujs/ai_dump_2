@@ -588,6 +588,8 @@ The validator checks the plan against all of these. Graph policy rules follow th
 | 8 | Agent forms mental model outside pack | Impossible — agent never sees files not in pack. Read/search verbs enforce pack intersection. |
 | 9 | Sub-agent arrives without agentID | MCP assigns one, tracks as new sub-agent under same workID. |
 | 10 | `signal_task_complete` called with work remaining | MCP checks progress; rejects if `remainingNodes > 0`. |
+| 11 | `graphops:sync` destroys dynamically-seeded facts | `seed-facts` generates JSONL *before* sync runs. All fact data lives in committed seed files. Sync is always idempotent: generate → drop → rebuild. Never write to Neo4j outside the seed pipeline. |
+| 12 | Runtime AST and Neo4j graph have no join keys | Symbol stubs (`sym:*`), Component stubs (`component:*`), and DomainAnchors (`anchor:*`) in Neo4j serve as bridge nodes. Runtime AST provides location precision; graph provides knowledge/policy attachment. |
 
 ---
 
@@ -620,9 +622,11 @@ The validator checks the plan against all of these. Graph policy rules follow th
 
 ### Phase 4: Day-0 Seed Expansion
 
-- [x] Symbol ingestion (high-signal TS facts → graph)
-- [x] Template ingestion (component usage facts → graph)
-- [x] SDF contract ingestion (`components.d.ts` → graph)
+- [x] Symbol ingestion — runtime extraction (IndexingService.getSymbolHeaders) ✅
+- [ ] Symbol ingestion — Neo4j persistence via `graphops:seed-facts` (JSONL bridge)
+- [x] Template ingestion — runtime extraction (IndexingService.getTemplateUsageFacts) ✅
+- [ ] Template ingestion — Neo4j persistence via `graphops:seed-facts` (JSONL bridge)
+- [ ] SDF contract ingestion (`components.d.ts` → graph) — parser exists, no CLI wrapper
 - [x] MigrationRule seed data
 
 ### Phase 5: Policy Grounding + Enforcement Bundle

@@ -61,6 +61,9 @@ export function validatePlanGraph(
   // Phase 6: Validate attachment artifactRef coverage
   validateAttachmentArtifactRefs(plan.nodes, rejectionCodes);
 
+  // Phase 7: Validate migration_rule_citation when strategy requires it
+  validateMigrationRuleCitations(plan, rejectionCodes);
+
   return {
     ok: rejectionCodes.length === 0,
     rejectionCodes: dedupe(rejectionCodes),
@@ -464,6 +467,36 @@ function validateAttachmentArtifactRefs(nodes: PlanNode[], rejectionCodes: strin
         rejectionCodes.push("PLAN_MISSING_ARTIFACT_REF");
         return; // One violation is enough
       }
+    }
+  }
+}
+
+/* ── Phase 7: migration_rule_citation enforcement ────────── */
+
+/**
+ * When knowledgeStrategyId is 'migration_adp_to_sdf', every change node
+ * MUST cite at least one MigrationRule in its policyRefs (prefix: "migration:").
+ * This turns the declared validator obligation into an actual acceptance gate.
+ *
+ * Spec ref: architecture_v2.md §7 planGraphSchema.validators.
+ */
+function validateMigrationRuleCitations(plan: PlanGraphDocument, rejectionCodes: string[]): void {
+  if (plan.knowledgeStrategyId !== "migration_adp_to_sdf") return;
+
+  const MIGRATION_PREFIX = "migration:";
+
+  for (const node of plan.nodes) {
+    if (node.kind !== "change") continue;
+    const changeNode = node as ChangePlanNode;
+
+    const hasMigrationCitation = changeNode.policyRefs.some(
+      (ref) => ref.startsWith(MIGRATION_PREFIX)
+    ) || changeNode.citations.some(
+      (c) => c.startsWith(MIGRATION_PREFIX)
+    );
+
+    if (!hasMigrationCitation) {
+      rejectionCodes.push("PLAN_MIGRATION_RULE_MISSING");
     }
   }
 }

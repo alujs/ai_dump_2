@@ -111,7 +111,10 @@ export function listAllowedFiles(
   worktreeRoot?: string
 ): string[] {
   if (!allowlist || allowlist.files.length === 0) {
-    return [worktreeRoot ? path.resolve(worktreeRoot) : workRoot(workId)];
+    // v2: Return empty rather than entire worktree. The contextPack builder
+    // should populate scope from retrieval lanes, not default to "everything."
+    // Callers that need a root fallback should handle the empty case explicitly.
+    return [];
   }
   return [...allowlist.files];
 }
