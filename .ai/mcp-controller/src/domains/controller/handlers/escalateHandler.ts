@@ -115,10 +115,11 @@ export async function handleEscalate(
         newSymbols: addedSymbols,
       });
     } catch {
-      // If disk persistence fails, fall back to in-memory merge
+      // If disk persistence fails, fall back to in-memory merge with canonical hash
       const newFiles = addedFiles.filter((f) => !previousFiles.includes(f));
       const mergedFiles = [...previousFiles, ...newFiles];
-      const newHash = computePackHash(mergedFiles.sort().join("\n"));
+      const canonicalPayload = JSON.stringify({ scope: { allowedFiles: mergedFiles.sort() } });
+      const newHash = computePackHash(canonicalPayload);
       enrichResult = {
         contextPackHash: newHash,
         addedFiles: newFiles,
@@ -127,10 +128,11 @@ export async function handleEscalate(
       };
     }
   } else {
-    // No pack ref or no files to add — compute in-memory delta
+    // No pack ref or no files to add — compute in-memory delta with canonical hash
     const newFiles = addedFiles.filter((f) => !previousFiles.includes(f));
     const mergedFiles = [...previousFiles, ...newFiles];
-    const newHash = computePackHash(mergedFiles.sort().join("\n"));
+    const canonicalPayload = JSON.stringify({ scope: { allowedFiles: mergedFiles.sort() } });
+    const newHash = computePackHash(canonicalPayload);
     enrichResult = {
       contextPackHash: newHash,
       addedFiles: newFiles,

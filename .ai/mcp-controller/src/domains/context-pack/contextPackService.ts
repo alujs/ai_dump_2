@@ -399,13 +399,15 @@ export async function enrichContextPack(input: EnrichContextPackInput): Promise<
   const mergedFiles = [...existingFiles, ...addedFiles];
 
   // Recompute hash using the canonical method: hash the full payload without the hash field
-  const updatedPayloadForHash = {
+  const updatedPayloadForHash: Record<string, unknown> = {
     ...existingPayload,
     scope: { ...((existingPayload.scope as object) ?? {}), allowedFiles: mergedFiles },
   };
-  // Remove existing hash from header before hashing (mirrors createContextPack behavior)
+  // Remove existing hash AND contextPackRef from header before hashing
+  // (mirrors createContextPack behavior: hash payload WITHOUT ref and hash fields)
   const headerForHash = { ...((updatedPayloadForHash.header as object) ?? {}) } as Record<string, unknown>;
   delete headerForHash.contextPackHash;
+  delete headerForHash.contextPackRef;
   updatedPayloadForHash.header = headerForHash;
   const contextPackHash = computePackHash(JSON.stringify(updatedPayloadForHash));
   const hashChanged = contextPackHash !== previousHash;

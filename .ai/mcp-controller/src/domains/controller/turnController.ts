@@ -205,8 +205,14 @@ export class TurnController {
         return handleCodeRun(collisionScopeKey, args, session, this.collisionGuard, state);
       case "execute_gated_side_effect":
         return handleSideEffect(collisionScopeKey, args, session, this.collisionGuard, state);
-      case "escalate":
-        return handleEscalate(args, session, { eventStore: this.eventStore, indexing: this.indexing });
+      case "escalate": {
+        const escalateResult = await handleEscalate(args, session, { eventStore: this.eventStore, indexing: this.indexing });
+        // Propagate updated contextPack to sibling sessions in the same work scope
+        if (session.contextPack) {
+          this.propagatePackToSiblings(session);
+        }
+        return escalateResult;
+      }
       case "run_automation_recipe":
         return handleRunRecipe(args, session, this.eventStore, this.recipes);
       case "signal_task_complete":
@@ -243,6 +249,7 @@ export class TurnController {
           if (siblingSession.planGraphProgress) session.planGraphProgress = { ...siblingSession.planGraphProgress };
           if (siblingSession.originalPrompt) session.originalPrompt = siblingSession.originalPrompt;
           if (siblingSession.scopeAllowlist) session.scopeAllowlist = siblingSession.scopeAllowlist;
+          if (siblingSession.enforcementBundle) session.enforcementBundle = siblingSession.enforcementBundle;
           // Inherit state progression — new agent shouldn't start at UNINITIALIZED if work is already initialized
           if (siblingSession.state !== "UNINITIALIZED") session.state = siblingSession.state;
           break; // Only need one sibling
@@ -251,6 +258,41 @@ export class TurnController {
     }
 
     return session;
+  }
+
+  /**
+   * After an escalation enriches a session's contextPack, propagate the updated
+   * pack to all sibling sessions sharing the same workScopeKey (runSessionId:workId).
+   * This ensures multi-agent scenarios don't have stale packs.
+   */
+  private propagatePackToSiblings(source: SessionState): void {
+    const prefix = `${source.runSessionId}:${source.workId}:`;
+    const sourceKey = `${prefix}${source.agentId}`;
+    for (const [key, sibling] of this.sessions) {
+      if (key === sourceKey) continue;
+      if (!key.startsWith(prefix)) continue;
+      // Merge: sibling keeps any files it already has, plus all new ones from source
+      if (source.contextPack) {
+        const siblingFiles = new Set(sibling.contextPack?.files ?? []);
+        const newFiles = source.contextPack.files.filter(f => !siblingFiles.has(f));
+        if (newFiles.length > 0) {
+          const mergedFiles = [...(sibling.contextPack?.files ?? []), ...newFiles];
+          sibling.contextPack = {
+            ref: source.contextPack.ref,
+            hash: source.contextPack.hash,
+            files: mergedFiles,
+          };
+        }
+      }
+      // Also propagate scopeAllowlist expansion
+      if (source.scopeAllowlist) {
+        const siblingAllowed = new Set(sibling.scopeAllowlist?.files ?? []);
+        const newAllowed = source.scopeAllowlist.files.filter(f => !siblingAllowed.has(f));
+        if (newAllowed.length > 0 && sibling.scopeAllowlist) {
+          sibling.scopeAllowlist.files.push(...newAllowed);
+        }
+      }
+    }
   }
 
   /* ── Private: response construction ────────────────────── */
@@ -355,9 +397,9 @@ export class TurnController {
           payload: { rejectionCode: code, count: session.rejectionCounts[code] },
         });
 
-        // Derive domain anchors from the session's scope
-        const domainAnchorIds = session.scopeAllowlist
-          ? Object.keys(session.scopeAllowlist).slice(0, 5).map((f) => {
+        // Derive domain anchors from the session's scope allowlist files
+        const domainAnchorIds = session.scopeAllowlist?.files?.length
+          ? session.scopeAllowlist.files.slice(0, 5).map((f) => {
               const parts = f.replace(/\\/g, "/").split("/");
               return parts.length > 1 ? `anchor:${parts.slice(0, 2).join("/")}` : `anchor:${parts[0]}`;
             })

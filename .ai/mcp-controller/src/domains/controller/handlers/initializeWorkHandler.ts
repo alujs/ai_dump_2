@@ -166,13 +166,23 @@ export async function handleInitializeWork(
     (m) => m.enforcementType === "strategy_signal" && m.strategySignal
   );
 
-  // Base strategy from prompt + lexemes
+  // Base strategy from prompt + lexemes + guard metadata + directive metadata
+  const resolvedGuards = deps.indexing?.getResolvedGuards() ?? [];
+  const guardNames = resolvedGuards.map((g) => g.name);
+  const guardArgs = resolvedGuards.flatMap((g) => g.instances.flatMap((i) => i.args));
+  const resolvedDirectives = deps.indexing?.getResolvedDirectives() ?? [];
+  const directiveNames = resolvedDirectives.map((d) => d.directiveName);
+  const directiveExpressions = resolvedDirectives.flatMap((d) => d.boundExpressions);
   const baseStrategy = selectStrategy({
     originalPrompt,
     lexemes,
     artifacts: session.artifacts.map((a) => ({ source: a.source, ref: a.ref, metadata: a.metadata })),
     anchors: extractAnchors(args),
     jiraFields,
+    guardNames,
+    guardArgs,
+    directiveNames,
+    directiveExpressions,
   });
 
   // Phase 5: Apply strategy_signal memory overrides to ContextSignature
@@ -256,6 +266,34 @@ export async function handleInitializeWork(
     scopeFiles = [...retrievedFiles];
   }
 
+  // Inject guard-related files into scope so the agent can read guard definitions
+  // and their imported dependencies without escalation
+  if (resolvedGuards.length > 0) {
+    const guardFilesToAdd = new Set<string>();
+    for (const guard of resolvedGuards) {
+      if (guard.definitionFile) guardFilesToAdd.add(guard.definitionFile);
+      for (const imp of guard.importedFiles) guardFilesToAdd.add(imp);
+    }
+    const existingFiles = new Set(scopeFiles);
+    for (const gf of guardFilesToAdd) {
+      if (!existingFiles.has(gf)) scopeFiles.push(gf);
+    }
+  }
+
+  // Inject directive-related files into scope so the agent can read @Directive class
+  // definitions and their imported dependencies without escalation
+  if (resolvedDirectives.length > 0) {
+    const directiveFilesToAdd = new Set<string>();
+    for (const dir of resolvedDirectives) {
+      if (dir.definitionFile) directiveFilesToAdd.add(dir.definitionFile);
+      for (const imp of dir.importedFiles) directiveFilesToAdd.add(imp);
+    }
+    const existingFiles = new Set(scopeFiles);
+    for (const df of directiveFilesToAdd) {
+      if (!existingFiles.has(df)) scopeFiles.push(df);
+    }
+  }
+
   const packOutput = await createContextPack({
     runSessionId: session.runSessionId,
     workId: session.workId,
@@ -305,13 +343,9 @@ export async function handleInitializeWork(
 
   if (deps.proofChainBuilder) {
     try {
-      const policyResult = await (deps.proofChainBuilder as ProofChainBuilder & {
-        queryGraphPolicies?: () => Promise<{ graphPolicies: GraphPolicyNode[]; migrationRules: MigrationRuleNode[] }>;
-      }).queryGraphPolicies?.();
-      if (policyResult) {
-        graphPolicies = policyResult.graphPolicies;
-        migrationRules = policyResult.migrationRules;
-      }
+      const policyResult = await deps.proofChainBuilder.queryGraphPolicies();
+      graphPolicies = policyResult.graphPolicies;
+      migrationRules = policyResult.migrationRules;
     } catch { /* Graph policy query failures are non-fatal */ }
   }
 
@@ -354,7 +388,9 @@ export async function handleInitializeWork(
 
   // Warn if scope is empty — this means the pack has no files and reads will fail (#4 fix)
   if (scopeFiles.length === 0) {
-    result.warning = \"contextPack.files is empty. The indexing service may not have run or found any files. \"\n      + \"Use 'escalate' with type='scope_expand' to request specific files be added to the pack.\";\n  }
+    result.warning = "contextPack.files is empty. The indexing service may not have run or found any files. "
+      + "Use 'escalate' with type='scope_expand' to request specific files be added to the pack.";
+  }
 
   result.contextPack = {
     ref: packOutput.contextPackRef,
@@ -374,7 +410,53 @@ export async function handleInitializeWork(
       .map((m) => ({ id: m.id, enforcementType: m.enforcementType, summary: m.fewShot?.instruction ?? m.note ?? "" })),
     attachments: session.artifacts
       .filter((a) => a.source === "attachment")
-      .map((a) => ({ ref: a.ref, caption: a.summary })),
+      .map((a) => ({ ref: a.ref, caption: a.summary })),    routes: deps.indexing
+      ? deps.indexing.getParsedRoutes()
+          .filter((r) => r.guards.length > 0)
+          .slice(0, 50)
+          .map((r) => ({
+            path: r.fullPath,
+            filePath: r.filePath,
+            guards: r.guardDetails.map((g) => ({
+              name: g.name,
+              guardType: g.guardType,
+              args: g.args,
+            })),
+            isLazy: r.isLazy,
+          }))
+      : [],
+    guardGraph: deps.indexing
+      ? deps.indexing.getResolvedGuards().map((g) => ({
+          name: g.name,
+          definitionFile: g.definitionFile,
+          kind: g.kind,
+          importedFiles: g.importedFiles,
+          importedSymbols: g.importedSymbols,
+          usedByRoutes: g.usedByRoutes.slice(0, 10),
+          instances: g.instances.slice(0, 20),
+        }))
+      : [],
+    resolvedDirectives: deps.indexing
+      ? deps.indexing.getResolvedDirectives().map((d) => ({
+          directiveName: d.directiveName,
+          boundExpressions: d.boundExpressions.slice(0, 20),
+          definitionFile: d.definitionFile,
+          className: d.className,
+          importedFiles: d.importedFiles,
+          importedSymbols: d.importedSymbols,
+          usedInTemplates: d.usedInTemplates.slice(0, 20),
+        }))
+      : [],
+    directiveUsages: deps.indexing
+      ? deps.indexing.getDirectiveUsages(100).map((u) => ({
+          directiveName: u.directiveName,
+          boundExpression: u.boundExpression,
+          filePath: u.filePath,
+          line: u.line,
+          hostTag: u.hostTag,
+          isStructural: u.isStructural,
+        }))
+      : [],
   };
 
   if (packOutput.insufficiency) {

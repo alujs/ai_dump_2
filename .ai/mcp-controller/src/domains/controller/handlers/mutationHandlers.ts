@@ -29,27 +29,45 @@ function markNodeCompleted(session: SessionState, nodeId: string): void {
   if (session.planGraphProgress.completedNodeIds.includes(nodeId)) return;
   session.planGraphProgress.completedNodeIds.push(nodeId);
   session.planGraphProgress.completedNodes = session.planGraphProgress.completedNodeIds.length;
-  autoCompleteValidateNodes(session);
+  // Remove from eligible list if it was a validate node being explicitly completed
+  const eligibleIdx = session.planGraphProgress.eligibleValidateNodeIds.indexOf(nodeId);
+  if (eligibleIdx >= 0) session.planGraphProgress.eligibleValidateNodeIds.splice(eligibleIdx, 1);
+  markEligibleValidateNodes(session);
 }
 
 /**
- * Auto-complete validate nodes whose mapped change nodes are all completed.
- * Per architecture_v2: when every change node referenced by a validate node's
- * mapsToNodeIds is done, the validate node is implicitly satisfied.
+ * Attach an advisory to the result if there are validate nodes now eligible for explicit validation.
+ * Agents must call `run_sandboxed_code` with the validate nodeId to complete them.
  */
-function autoCompleteValidateNodes(session: SessionState): void {
+function attachValidateAdvisory(session: SessionState, result: Record<string, unknown>): void {
+  const eligible = session.planGraphProgress?.eligibleValidateNodeIds ?? [];
+  if (eligible.length > 0) {
+    result.pendingValidation = {
+      message: "Validate nodes are eligible. Run run_sandboxed_code with each validate nodeId to complete them.",
+      eligibleValidateNodeIds: [...eligible],
+    };
+  }
+}
+
+/**
+ * Track validate nodes whose mapped change nodes are all completed.
+ * Per audit #4: validate nodes must NOT be auto-completed. Instead they are
+ * marked "eligible" — the agent must explicitly run validation via
+ * `run_sandboxed_code` referencing the validate nodeId to complete them.
+ */
+function markEligibleValidateNodes(session: SessionState): void {
   if (!session.planGraph?.nodes || !session.planGraphProgress) return;
   const completed = new Set(session.planGraphProgress.completedNodeIds);
+  const eligible = new Set(session.planGraphProgress.eligibleValidateNodeIds);
   for (const node of session.planGraph.nodes) {
     if ((node as any).kind !== "validate") continue;
     const nodeId = (node as any).nodeId;
-    if (completed.has(nodeId)) continue;
+    if (completed.has(nodeId) || eligible.has(nodeId)) continue;
     const mapped: string[] = (node as any).mapsToNodeIds ?? [];
     if (mapped.length === 0) continue;
     if (mapped.every((id: string) => completed.has(id))) {
-      session.planGraphProgress.completedNodeIds.push(nodeId);
-      session.planGraphProgress.completedNodes = session.planGraphProgress.completedNodeIds.length;
-      completed.add(nodeId);
+      session.planGraphProgress.eligibleValidateNodeIds.push(nodeId);
+      eligible.add(nodeId);
     }
   }
 }
@@ -180,6 +198,7 @@ export async function handlePatchApply(
       diffSummaryRef: bundle.diffSummaryRef,
     };
     markNodeCompleted(session, request.nodeId);
+    attachValidateAdvisory(session, result);
     return { result, denyReasons, stateOverride: "PLAN_ACCEPTED" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "PATCH_FAILED";
@@ -274,6 +293,7 @@ export async function handleCodeRun(
     valueSummary: summarizeValue(execution.value),
   };
   markNodeCompleted(session, request.nodeId);
+  attachValidateAdvisory(session, result);
   return { result, denyReasons, stateOverride: "PLAN_ACCEPTED" };
 }
 
@@ -350,5 +370,6 @@ export async function handleSideEffect(
 
   result.sideEffect = { accepted: true, artifactBundleRef: bundle.bundleDir };
   markNodeCompleted(session, nodeId);
+  attachValidateAdvisory(session, result);
   return { result, denyReasons, stateOverride: "PLAN_ACCEPTED" };
 }

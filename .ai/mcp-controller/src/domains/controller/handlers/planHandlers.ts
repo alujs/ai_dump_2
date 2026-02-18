@@ -150,6 +150,7 @@ export async function handleSubmitPlan(
     totalNodes: actionableNodes.length,
     completedNodes: 0,
     completedNodeIds: [],
+    eligibleValidateNodeIds: [],
   };
 
   result.planValidation = "passed";

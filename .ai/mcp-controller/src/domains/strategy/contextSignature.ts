@@ -23,6 +23,10 @@ export interface ContextSignature {
   test_confidence_level: "high" | "medium" | "low" | "none";
   /** Inferred task type from lexeme analysis */
   task_type_guess: "ui_feature" | "api_contract" | "migration" | "debug" | "unknown";
+  /** Route guards / auth / role / permission signals detected */
+  has_route_guards: boolean;
+  /** Template-level custom directives detected (resolved from AST, not hardcoded) */
+  has_template_directives: boolean;
 }
 
 export interface ContextSignatureInput {
@@ -47,6 +51,12 @@ export interface ContextSignatureInput {
     summary?: string;
     description?: string;
   };
+  /** Route guard metadata from indexer (if available) */
+  guardNames?: string[];
+  guardArgs?: string[];
+  /** Role/permission directive metadata from indexer (if available) */
+  directiveNames?: string[];
+  directiveExpressions?: string[];
 }
 
 /* ── Lexeme class detectors ──────────────────────────────── */
@@ -94,6 +104,21 @@ const DEBUG_SIGNALS = [
   "fix", "hotfix", "root cause", "investigate", "debug"
 ];
 
+const GUARD_SIGNALS = [
+  "guard", "canactivate", "canmatch", "candeactivate", "canactivatechild",
+  "authguard", "roleguard", "permissionguard", "sessionguard",
+  "role", "permission", "acl", "access control", "authorize",
+  "isauthorized", "hasrole", "haspermission", "roles.ts",
+  "permissions.ts", "auth.guard", "role.guard"
+];
+
+// NOTE: No hardcoded DIRECTIVE_SIGNALS list.
+// has_template_directives is computed from resolved indexer data
+// (directiveNames/directiveExpressions), not from pattern matching.
+// The guard signals above are retained because guard detection also serves
+// as a prompt heuristic (before indexing runs), but directive detection is
+// purely fact-driven from the AST.
+
 const TEST_HIGH_SIGNALS = ["cypress", "e2e", "integration test", "spec.ts"];
 const TEST_MED_SIGNALS = ["unit test", "jasmine", "karma", "jest", ".spec."];
 const TEST_LOW_SIGNALS = ["test", "describe(", "it(", "expect("];
@@ -136,6 +161,18 @@ export function computeContextSignature(input: ContextSignatureInput): ContextSi
     jiraIssueType: input.jiraFields?.issueType,
   });
 
+  const has_route_guards = matchesAnySignal(corpus, GUARD_SIGNALS)
+    || (input.guardNames?.length ?? 0) > 0
+    || hasJiraLabel(input.jiraFields, "role")
+    || hasJiraLabel(input.jiraFields, "permission")
+    || hasJiraLabel(input.jiraFields, "guard");
+
+  // has_template_directives is computed purely from resolved indexer data.
+  // If the indexer found custom directives in templates, this fires.
+  // No hardcoded pattern list — the AST extraction is generic.
+  const has_template_directives = (input.directiveNames?.length ?? 0) > 0
+    || (input.directiveExpressions?.length ?? 0) > 0;
+
   return {
     has_swagger,
     mentions_aggrid,
@@ -145,6 +182,8 @@ export function computeContextSignature(input: ContextSignatureInput): ContextSi
     sdf_contract_available,
     test_confidence_level,
     task_type_guess,
+    has_route_guards,
+    has_template_directives,
   };
 }
 
@@ -179,6 +218,14 @@ function buildCorpus(input: ContextSignatureInput): string {
       parts.push(s.symbol, s.kind, s.filePath);
     }
   }
+
+  // Include guard metadata (names + arguments like role strings)
+  if (input.guardNames) parts.push(...input.guardNames);
+  if (input.guardArgs) parts.push(...input.guardArgs);
+
+  // Include directive metadata (names + bound expressions like role strings)
+  if (input.directiveNames) parts.push(...input.directiveNames);
+  if (input.directiveExpressions) parts.push(...input.directiveExpressions);
 
   return parts.join("\n").toLowerCase();
 }

@@ -6,7 +6,18 @@
  *   2. SymbolDefinition nodes  (from IndexingService.getSymbolHeaders)
  *   3. Component nodes  (derived from template usage tags)
  *   4. UsageExample nodes  (from IndexingService.getTemplateUsageFacts)
- *   5. Edges: FILE_DECLARES_SYMBOL, IN_ANCHOR, USES_COMPONENT, HAS_USAGE
+ *   5. RouteGuard nodes  (from ResolvedGuard[])
+ *   6. TemplateDirective nodes  (from ResolvedDirective[])
+ *   7. Edges: FILE_DECLARES_SYMBOL, IN_ANCHOR, USES_COMPONENT, HAS_USAGE,
+ *            GUARDED_BY, GUARD_DEFINED_IN, USES_DIRECTIVE, DIRECTIVE_DEFINED_IN
+ *
+ * JOIN KEY RULES:
+ *   - All IDs are DERIVED from extracted facts, never invented
+ *   - SymbolDefinition IDs: `sym:${kind}:${relativePath}#${symbolName}`
+ *   - Edges reference actual resolved IDs, not guessed names
+ *   - All node/rel properties are Neo4j-legal primitives (string, number,
+ *     boolean, string[]).  No nested objects — use string[] for arrays,
+ *     move structured data to edges instead.
  *
  * This module is intentionally WRITE-ONLY: it generates JSONL files that
  * graphOpsService.sync() consumes. It does NOT talk to Neo4j directly.
@@ -18,7 +29,7 @@ import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { ensureDir } from "../../shared/fileStore";
 import { scanAnchors, resolveAnchorsForFiles, type AnchorSeedResult } from "../memory/anchorSeeder";
-import type { SymbolHeader, TemplateUsageFact, ParsedRoute, TemplateRouterLinkFact } from "../indexing/indexingService";
+import type { SymbolHeader, TemplateUsageFact, ParsedRoute, TemplateRouterLinkFact, DirectiveUsageFact, ResolvedGuard, ResolvedDirective } from "../indexing/indexingService";
 import type { DomainAnchor } from "../../contracts/memoryRecord";
 
 /* ── Types ───────────────────────────────────────────────── */
@@ -46,6 +57,8 @@ export interface SeedFactsResult {
   componentCount: number;
   usageExampleCount: number;
   routeCount: number;
+  guardCount: number;
+  directiveCount: number;
   edgeCount: number;
   files: string[];
 }
@@ -62,6 +75,9 @@ export interface SeedFactsResult {
  * @param routes      From IndexingService.getParsedRoutes()
  * @param routerLinks From IndexingService.getTemplateRouterLinks()
  * @param routerOutletFiles From IndexingService.getRouterOutletFiles()
+ * @param directiveUsages From IndexingService.getDirectiveUsages()
+ * @param resolvedGuards  From IndexingService.getResolvedGuards() — for derived join keys
+ * @param resolvedDirectives From IndexingService.getResolvedDirectives() — for derived join keys
  */
 export async function generateFactSeedFiles(
   repoRoot: string,
@@ -71,6 +87,9 @@ export async function generateFactSeedFiles(
   routes: ParsedRoute[] = [],
   routerLinks: TemplateRouterLinkFact[] = [],
   routerOutletFiles: string[] = [],
+  directiveUsages: DirectiveUsageFact[] = [],
+  resolvedGuards: ResolvedGuard[] = [],
+  resolvedDirectives: ResolvedDirective[] = [],
 ): Promise<SeedFactsResult> {
   const factDir = path.join(seedRoot, "fact");
   await ensureDir(factDir);
@@ -93,15 +112,21 @@ export async function generateFactSeedFiles(
   await writeJsonlFile(componentFile, componentResult.nodes);
 
   /* ── 4. Route nodes + edges ─────────────────────────────── */
-  const routeResult = buildRouteRows(routes, repoRoot, anchorResult.anchors, routerLinks, routerOutletFiles, now);
+  const routeResult = buildRouteRows(routes, repoRoot, anchorResult.anchors, routerLinks, routerOutletFiles, resolvedGuards, now);
   const routeFile = path.join(factDir, "routes.jsonl");
   await writeJsonlFile(routeFile, routeResult.nodes);
+
+  /* ── 4b. TemplateDirective nodes + edges ───────────────── */
+  const directiveResult = buildDirectiveRows(directiveUsages, repoRoot, anchorResult.anchors, resolvedDirectives, now);
+  const directiveFile = path.join(factDir, "directives.jsonl");
+  await writeJsonlFile(directiveFile, directiveResult.nodes);
 
   /* ── 5. All edges ──────────────────────────────────────── */
   const allEdges: SeedRow[] = [
     ...symbolRows.edges,
     ...componentResult.edges,
     ...routeResult.edges,
+    ...directiveResult.edges,
   ];
   const edgeFile = path.join(factDir, "edges.jsonl");
   await writeJsonlFile(edgeFile, allEdges);
@@ -112,8 +137,10 @@ export async function generateFactSeedFiles(
     componentCount: componentResult.componentCount,
     usageExampleCount: componentResult.usageCount,
     routeCount: routeResult.routeCount,
+    guardCount: routeResult.guardCount,
+    directiveCount: directiveResult.directiveCount,
     edgeCount: allEdges.length,
-    files: [anchorFile, symbolFile, componentFile, routeFile, edgeFile],
+    files: [anchorFile, symbolFile, componentFile, routeFile, directiveFile, edgeFile],
   };
 }
 
@@ -293,6 +320,9 @@ function buildComponentAndUsageRows(
 /**
  * Build AngularRoute nodes and edges:
  *   - AngularRoute nodes (one per route definition)
+ *   - RouteGuard nodes (one per unique guard, with derived symbol join keys)
+ *   - GUARDED_BY edges (route → guard, with guardType + args as native string[])
+ *   - GUARD_DEFINED_IN edges (guard → SymbolDefinition, using DERIVED IDs from resolved data)
  *   - ROUTES_TO edges (route → component symbol, resolved from loadComponent target)
  *   - CHILD_OF edges (child route → parent route)
  *   - IN_ANCHOR edges (route → deepest matching domain anchor)
@@ -305,11 +335,19 @@ function buildRouteRows(
   anchors: DomainAnchor[],
   routerLinks: TemplateRouterLinkFact[],
   routerOutletFiles: string[],
+  resolvedGuards: ResolvedGuard[],
   now: string,
-): { nodes: SeedRow[]; edges: SeedRow[]; routeCount: number } {
+): { nodes: SeedRow[]; edges: SeedRow[]; routeCount: number; guardCount: number } {
   const nodes: SeedRow[] = [];
   const edges: SeedRow[] = [];
   const seen = new Set<string>();
+  const seenGuards = new Set<string>();
+
+  // Build a guard name → resolved data lookup for derived join keys
+  const guardResolutionMap = new Map<string, ResolvedGuard>();
+  for (const rg of resolvedGuards) {
+    guardResolutionMap.set(rg.name, rg);
+  }
 
   // Build a path → routeId lookup for routerLink matching
   const pathToRouteId = new Map<string, string>();
@@ -335,13 +373,71 @@ function buildRouteRows(
         isLazy: route.isLazy,
         loadComponentTarget: route.loadComponentTarget ?? "",
         loadChildrenTarget: route.loadChildrenTarget ?? "",
-        guards: JSON.stringify(route.guards),
+        guards: route.guards,                    // native string[] — Neo4j supports this
+        guardCount: route.guardDetails.length,   // scalar for quick filtering
         hasChildren: route.hasChildren,
         hasProviders: route.hasProviders,
         updated_at: now,
         updated_by: "seed-facts",
       },
     });
+
+    // RouteGuard nodes + GUARDED_BY edges
+    // Uses resolved guard data for derived join keys — no guessing.
+    for (const detail of route.guardDetails) {
+      const guardId = `guard:${detail.name}`;
+      if (!seenGuards.has(guardId)) {
+        seenGuards.add(guardId);
+
+        // Look up the resolved guard data to get the ACTUAL symbol ID
+        const resolved = guardResolutionMap.get(detail.name);
+
+        nodes.push({
+          kind: "node",
+          id: guardId,
+          labels: ["RouteGuard"],
+          properties: {
+            id: guardId,
+            name: detail.name,
+            // Store derived metadata from resolved data (all scalars/string[])
+            definitionFile: resolved?.definitionFile ?? "",
+            kind: resolved?.kind ?? "",
+            importedFiles: resolved?.importedFiles ?? [],
+            importedSymbols: resolved?.importedSymbols ?? [],
+            updated_at: now,
+            updated_by: "seed-facts",
+          },
+        });
+
+        // Edge: GUARD_DEFINED_IN (guard → SymbolDefinition)
+        // DERIVED join key: sym:${kind}:${relativePath}#${symbolName}
+        // If no resolved data, emit no edge (don't guess)
+        if (resolved?.definitionFile && resolved.kind) {
+          const defRelPath = normalizeToRelative(resolved.definitionFile, repoRoot);
+          const symbolId = `sym:${resolved.kind}:${defRelPath}#${detail.name}`;
+          edges.push({
+            kind: "relationship",
+            from: { id: guardId, label: "RouteGuard" },
+            to: { id: symbolId, label: "SymbolDefinition" },
+            relType: "GUARD_DEFINED_IN",
+            properties: { updated_at: now, updated_by: "seed-facts" },
+          });
+        }
+      }
+
+      edges.push({
+        kind: "relationship",
+        from: { id: routeId, label: "AngularRoute" },
+        to: { id: `guard:${detail.name}`, label: "RouteGuard" },
+        relType: "GUARDED_BY",
+        properties: {
+          guardType: detail.guardType,
+          args: detail.args,              // native string[] — not JSON.stringify
+          updated_at: now,
+          updated_by: "seed-facts",
+        },
+      });
+    }
 
     // Edge: CHILD_OF (this route → parent route)
     if (route.parentRoutePath !== undefined) {
@@ -436,7 +532,118 @@ function buildRouteRows(
     }
   }
 
-  return { nodes, edges, routeCount: seen.size };
+  return { nodes, edges, routeCount: seen.size, guardCount: seenGuards.size };
+}
+
+/* ── TemplateDirective rows ───────────────────────────────── */
+
+/**
+ * Build TemplateDirective graph nodes + edges from template directive usages.
+ * Generic — captures ALL custom directives, not just role/permission ones.
+ *
+ * Creates:
+ *   - TemplateDirective nodes (one per unique directive name)
+ *   - USES_DIRECTIVE edges (template file → TemplateDirective)
+ *   - DIRECTIVE_DEFINED_IN edges (TemplateDirective → SymbolDefinition)
+ *
+ * Join keys are DERIVED from ResolvedDirective data, not guessed.
+ * If a directive can't be resolved to a symbol, no DIRECTIVE_DEFINED_IN
+ * edge is emitted (no broken references).
+ */
+function buildDirectiveRows(
+  usages: DirectiveUsageFact[],
+  repoRoot: string,
+  anchors: DomainAnchor[],
+  resolvedDirectives: ResolvedDirective[],
+  now: string,
+): { nodes: SeedRow[]; edges: SeedRow[]; directiveCount: number } {
+  const nodes: SeedRow[] = [];
+  const edges: SeedRow[] = [];
+  const seenDirectives = new Set<string>();
+
+  // Build a directive name → resolved data lookup for derived join keys
+  const directiveResolutionMap = new Map<string, ResolvedDirective>();
+  for (const rd of resolvedDirectives) {
+    directiveResolutionMap.set(rd.directiveName, rd);
+  }
+
+  // Group usages by directive name to collect all expressions + templates
+  const directiveUsageMap = new Map<string, {
+    expressions: Set<string>;
+    templates: Set<string>;
+    isStructural: boolean;
+  }>();
+
+  for (const usage of usages) {
+    let entry = directiveUsageMap.get(usage.directiveName);
+    if (!entry) {
+      entry = { expressions: new Set(), templates: new Set(), isStructural: usage.isStructural };
+      directiveUsageMap.set(usage.directiveName, entry);
+    }
+    if (usage.boundExpression) entry.expressions.add(usage.boundExpression);
+    entry.templates.add(normalizeToRelative(usage.filePath, repoRoot));
+  }
+
+  for (const [directiveName, info] of directiveUsageMap) {
+    const directiveId = `directive:${directiveName}`;
+    if (seenDirectives.has(directiveId)) continue;
+    seenDirectives.add(directiveId);
+
+    const resolved = directiveResolutionMap.get(directiveName);
+
+    nodes.push({
+      kind: "node",
+      id: directiveId,
+      labels: ["TemplateDirective"],
+      properties: {
+        id: directiveId,
+        name: directiveName,
+        isStructural: info.isStructural,
+        boundExpressions: [...info.expressions],   // native string[] — not JSON.stringify
+        templateCount: info.templates.size,
+        // Derived metadata from resolved data (all scalars/string[])
+        definitionFile: resolved?.definitionFile ?? "",
+        className: resolved?.className ?? "",
+        kind: resolved?.kind ?? "",
+        importedFiles: resolved?.importedFiles ?? [],
+        importedSymbols: resolved?.importedSymbols ?? [],
+        updated_at: now,
+        updated_by: "seed-facts",
+      },
+    });
+
+    // USES_DIRECTIVE edges: template file → TemplateDirective
+    for (const templateFile of info.templates) {
+      const fileId = `file:${templateFile}`;
+      edges.push({
+        kind: "relationship",
+        from: { id: fileId, label: "File" },
+        to: { id: directiveId, label: "TemplateDirective" },
+        relType: "USES_DIRECTIVE",
+        properties: {
+          expressions: [...info.expressions],    // native string[]
+          updated_at: now,
+          updated_by: "seed-facts",
+        },
+      });
+    }
+
+    // DIRECTIVE_DEFINED_IN edge: TemplateDirective → SymbolDefinition
+    // DERIVED join key from resolved data — no guessing
+    if (resolved?.definitionFile && resolved.kind && resolved.className) {
+      const defRelPath = normalizeToRelative(resolved.definitionFile, repoRoot);
+      const symbolId = `sym:${resolved.kind}:${defRelPath}#${resolved.className}`;
+      edges.push({
+        kind: "relationship",
+        from: { id: directiveId, label: "TemplateDirective" },
+        to: { id: symbolId, label: "SymbolDefinition" },
+        relType: "DIRECTIVE_DEFINED_IN",
+        properties: { updated_at: now, updated_by: "seed-facts" },
+      });
+    }
+  }
+
+  return { nodes, edges, directiveCount: seenDirectives.size };
 }
 
 /* ── Helpers ─────────────────────────────────────────────── */

@@ -49,14 +49,22 @@ async function main(): Promise<void> {
     const routes = indexing.getParsedRoutes();
     const routerLinks = indexing.getTemplateRouterLinks(2000);
     const routerOutletFiles = indexing.getRouterOutletFiles();
+    const directiveUsages = indexing.getDirectiveUsages();
+    const resolvedGuards = indexing.getResolvedGuards();
+    const resolvedDirectives = indexing.getResolvedDirectives();
     const seedRoot = path.join(repoRoot, config.graph.seedRoot);
 
     process.stdout.write(
       `graphops seed-facts: extracted ${symbols.length} symbols, ${usageFacts.length} template usage facts, ` +
-      `${routes.length} routes, ${routerLinks.length} routerLinks, ${routerOutletFiles.length} router-outlet files\n`
+      `${routes.length} routes, ${routerLinks.length} routerLinks, ${routerOutletFiles.length} router-outlet files, ` +
+      `${directiveUsages.length} directive usages, ${resolvedGuards.length} resolved guards, ` +
+      `${resolvedDirectives.length} resolved directives\n`
     );
 
-    const result = await generateFactSeedFiles(targetRoot, seedRoot, symbols, usageFacts, routes, routerLinks, routerOutletFiles);
+    const result = await generateFactSeedFiles(
+      targetRoot, seedRoot, symbols, usageFacts, routes, routerLinks,
+      routerOutletFiles, directiveUsages, resolvedGuards, resolvedDirectives,
+    );
     process.stdout.write(
       `graphops seed-facts complete. anchors=${result.anchorCount} symbols=${result.symbolCount} ` +
       `components=${result.componentCount} usageExamples=${result.usageExampleCount} ` +

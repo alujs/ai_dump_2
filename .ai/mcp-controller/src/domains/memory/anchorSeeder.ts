@@ -16,6 +16,7 @@ import { readdir, stat } from "node:fs/promises";
 import { MEMORY_CONFIG } from "./config";
 import type { DomainAnchor } from "../../contracts/memoryRecord";
 import { appendJsonl } from "../../shared/fileStore";
+import { loadGitignoreFilter, type GitignoreFilter } from "../../shared/gitignoreFilter";
 
 /* ── Types ───────────────────────────────────────────────── */
 
@@ -45,8 +46,9 @@ export async function scanAnchors(
   const anchors: DomainAnchor[] = [];
   const relationships: AnchorRelationship[] = [];
   const now = new Date().toISOString();
+  const gitFilter = loadGitignoreFilter(repoRoot);
 
-  await walkDir(repoRoot, "", 0, config.anchorAutoSeedMaxDepth, config, anchors, relationships, now);
+  await walkDir(repoRoot, "", 0, config.anchorAutoSeedMaxDepth, config, anchors, relationships, now, gitFilter);
 
   // Add forced includes that may have been excluded by depth
   for (const override of config.anchorIncludeOverrides) {
@@ -132,6 +134,7 @@ async function walkDir(
   anchors: DomainAnchor[],
   relationships: AnchorRelationship[],
   now: string,
+  gitFilter: GitignoreFilter,
 ): Promise<void> {
   if (currentDepth > maxDepth) return;
 
@@ -149,8 +152,13 @@ async function walkDir(
   const dirs = entries.filter((entry) => {
     if (!entry.isDirectory()) return false;
     const name = entry.name;
+    // Fast-path: skip always-excluded segments (node_modules, dist, etc.)
+    if (gitFilter.isHardExcludedSegment(name)) return false;
     // Exclude dotfiles/dirs (except explicitly included)
     if (name.startsWith(".")) return false;
+    // Check .gitignore rules
+    const childRel = relativePath ? `${relativePath}/${name}` : name;
+    if (gitFilter.isIgnored(childRel)) return false;
     // Exclude configured patterns
     return !config.anchorExcludePatterns.some((pattern) => matchesExclude(name, pattern));
   });
@@ -181,7 +189,7 @@ async function walkDir(
     anchors.push(anchor);
 
     // Recurse
-    await walkDir(repoRoot, childRelativePath, currentDepth + 1, maxDepth, config, anchors, relationships, now);
+    await walkDir(repoRoot, childRelativePath, currentDepth + 1, maxDepth, config, anchors, relationships, now, gitFilter);
   }
 }
 

@@ -37,12 +37,34 @@ export function isInPack(filePath: string, session: SessionState): boolean {
   const normalized = toRepoRelative(filePath);
   // Scratch-area files (.ai/tmp/work/) are always accessible — they're the agent's own workspace
   if (normalized.includes(".ai/tmp/work/")) return true;
-  // .ai/ config/schema files are always accessible (controller's own files)
-  if (normalized.startsWith(".ai/")) return true;
+  // Narrowed .ai/ bypass: only allow controller config, schemas, how-to docs, and memory overrides.
+  // The full .ai/mcp-controller/src/ tree is NOT bypassed — it must be in the pack to be read.
+  // To toggle this off entirely, remove or comment out the AI_BYPASS_PREFIXES array.
+  if (isAiBypassPath(normalized)) return true;
 
   // Build canonical set of repo-relative pack paths for exact matching
   const canonicalPack = new Set(packFiles.map(toRepoRelative));
   return canonicalPack.has(normalized);
+}
+
+/**
+ * Narrowed .ai/ bypass prefixes. Only these subdirectories are accessible without
+ * being explicitly in the contextPack. This prevents agents from reading controller
+ * source code or arbitrary .ai/ files without escalation.
+ *
+ * To disable the bypass entirely, set AI_BYPASS_PREFIXES to an empty array.
+ * To add new safe paths, append to the array.
+ */
+const AI_BYPASS_PREFIXES = [
+  ".ai/config/",         // Gateway config and schemas
+  ".ai/how-to/",         // Documentation for agents
+  ".ai/memory/overrides/", // Human-authored memory overrides
+  ".ai/docs/",           // Architecture docs
+];
+
+function isAiBypassPath(normalizedPath: string): boolean {
+  if (!normalizedPath.startsWith(".ai/")) return false;
+  return AI_BYPASS_PREFIXES.some(prefix => normalizedPath.startsWith(prefix));
 }
 
 /**

@@ -3,7 +3,7 @@ import { replaceWithGuard } from "../../shared/replaceGuard";
 import { ConnectorKernel } from "./connectorKernel";
 
 export interface ConnectorArtifact {
-  source: "jira" | "swagger";
+  source: "jira" | "swagger" | "attachment";
   ref: string;
   summary: string;
   metadata: Record<string, unknown>;

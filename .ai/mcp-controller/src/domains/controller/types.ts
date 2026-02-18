@@ -25,6 +25,8 @@ export interface SessionState {
     totalNodes: number;
     completedNodes: number;
     completedNodeIds: string[];
+    /** Validate nodes whose mapped change nodes are all completed but still require explicit validation via run_sandboxed_code */
+    eligibleValidateNodeIds: string[];
   };
   /** Enforcement bundle computed from memories + graph policies during initialize_work */
   enforcementBundle?: EnforcementBundle;

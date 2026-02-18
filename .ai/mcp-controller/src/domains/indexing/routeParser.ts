@@ -44,8 +44,10 @@ export interface ParsedRoute {
   loadComponentTarget?: string;
   /** Dynamic import target path for loadChildren (e.g. "./editor/editor.routes") */
   loadChildrenTarget?: string;
-  /** Guard function names if present */
+  /** Guard function names if present (legacy flat list) */
   guards: string[];
+  /** Structured guard info including arguments and guard type */
+  guardDetails: GuardDetail[];
   /** Parent route fullPath, if nested */
   parentRoutePath?: string;
   /** Child routes (pre-flattened — also in the flat output) */
@@ -54,6 +56,16 @@ export interface ParsedRoute {
   hasChildren: boolean;
   /** Whether this route has `providers` (route-scoped DI) */
   hasProviders: boolean;
+}
+
+/** Structured guard extraction — captures name, call arguments, and guard hook type */
+export interface GuardDetail {
+  /** Guard function or class name (e.g. "authGuard", "RoleGuard") */
+  name: string;
+  /** Call arguments as raw source text (e.g. ["'ADMIN'", "'EDITOR'"] from roleGuard('ADMIN', 'EDITOR')) */
+  args: string[];
+  /** Which route guard hook this was declared under */
+  guardType: "canActivate" | "canDeactivate" | "canMatch" | "canActivateChild";
 }
 
 export interface RouteParseResult {
@@ -233,7 +245,7 @@ function extractSingleRoute(
   const loadComponentTarget = extractDynamicImportPath(obj, "loadComponent");
   const loadChildrenTarget = extractDynamicImportPath(obj, "loadChildren");
   const isLazy = !!(loadComponentTarget || loadChildrenTarget);
-  const guards = extractGuardNames(obj);
+  const { guards, guardDetails } = extractGuardInfo(obj);
   const childrenProp = getArrayProperty(obj, "children");
   const hasProviders = hasProperty(obj, "providers");
 
@@ -246,6 +258,7 @@ function extractSingleRoute(
     loadComponentTarget,
     loadChildrenTarget,
     guards,
+    guardDetails,
     parentRoutePath: parentRoutePath ?? undefined,
     childCount: 0,
     hasChildren: !!childrenProp,
@@ -344,27 +357,38 @@ function extractImportPathFromExpression(node: Node): string | undefined {
 }
 
 /**
- * Extract guard function *names* from canMatch/canActivate/canDeactivate arrays.
- * e.g. `canMatch: [authGuard()]` → ["authGuard"]
+ * Extract structured guard info from canMatch/canActivate/canDeactivate/canActivateChild arrays.
+ * Captures guard name, call arguments (role strings, permission tokens, etc.), and guard type.
+ *
+ * Examples:
+ *   `canActivate: [authGuard()]`         → { name: "authGuard", args: [], guardType: "canActivate" }
+ *   `canActivate: [roleGuard('ADMIN')]`  → { name: "roleGuard", args: ["'ADMIN'"], guardType: "canActivate" }
+ *   `canMatch: [RoleGuard]`              → { name: "RoleGuard", args: [], guardType: "canMatch" }
  */
-function extractGuardNames(obj: ObjectLiteralExpression): string[] {
+function extractGuardInfo(obj: ObjectLiteralExpression): { guards: string[]; guardDetails: GuardDetail[] } {
   const guards: string[] = [];
-  for (const guardProp of ["canMatch", "canActivate", "canDeactivate", "canActivateChild"]) {
-    const arr = getArrayProperty(obj, guardProp);
+  const guardDetails: GuardDetail[] = [];
+  const guardTypes = ["canMatch", "canActivate", "canDeactivate", "canActivateChild"] as const;
+  for (const guardType of guardTypes) {
+    const arr = getArrayProperty(obj, guardType);
     if (!arr) continue;
     for (const el of arr.getElements()) {
-      // `authGuard()` — CallExpression whose expression is Identifier
+      // `authGuard()` or `roleGuard('ADMIN', 'EDITOR')` — CallExpression
       if (el.isKind(SyntaxKind.CallExpression)) {
         const name = el.getExpression().getText();
+        const args = el.getArguments().map((a) => a.getText());
         guards.push(name);
+        guardDetails.push({ name, args, guardType });
       }
-      // `AuthGuard` — Identifier (class-based guard)
+      // `AuthGuard` — Identifier (class-based guard, no call args)
       if (el.isKind(SyntaxKind.Identifier)) {
-        guards.push(el.getText());
+        const name = el.getText();
+        guards.push(name);
+        guardDetails.push({ name, args: [], guardType });
       }
     }
   }
-  return guards;
+  return { guards, guardDetails };
 }
 
 /* ── Path helpers ────────────────────────────────────────── */

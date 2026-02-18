@@ -12,6 +12,7 @@
 
 import { Neo4jClient, type Neo4jConnectionConfig } from "../../infrastructure/neo4j/client";
 import type { IndexingService } from "../indexing/indexingService";
+import type { GraphPolicyNode, MigrationRuleNode } from "../plan-graph/enforcementBundle";
 
 /* ── Public types ─────────────────────────────────────────── */
 
@@ -490,5 +491,78 @@ export class ProofChainBuilder {
       ),
     );
     return hinted ?? hits[0];
+  }
+
+  /**
+   * Query Neo4j for graph-derived policy nodes and migration rules.
+   * Returns empty arrays when the graph is unavailable (non-fatal).
+   */
+  async queryGraphPolicies(): Promise<{
+    graphPolicies: GraphPolicyNode[];
+    migrationRules: MigrationRuleNode[];
+  }> {
+    let client: Neo4jClient | null = null;
+    const graphPolicies: GraphPolicyNode[] = [];
+    const migrationRules: MigrationRuleNode[] = [];
+
+    try {
+      client = new Neo4jClient(this.config.neo4j);
+      await client.verifyConnectivity();
+
+      // Query UIIntent, ComponentIntent, MacroConstraint policy nodes
+      const policyRecords = await client.runRead<{
+        id: string; type: string; grounded: boolean;
+        condition: string; enforcement: string;
+        componentTag?: string;
+      }>(
+        `MATCH (p)
+         WHERE p:UIIntent OR p:ComponentIntent OR p:MacroConstraint
+         RETURN p.id AS id,
+                head(labels(p)) AS type,
+                coalesce(p.grounded, false) AS grounded,
+                coalesce(p.condition, '') AS condition,
+                coalesce(p.enforcement, 'advisory') AS enforcement,
+                p.componentTag AS componentTag
+         LIMIT 200`,
+        {},
+      );
+      for (const r of policyRecords) {
+        graphPolicies.push({
+          id: r.id,
+          type: r.type as GraphPolicyNode["type"],
+          grounded: r.grounded,
+          condition: r.condition,
+          enforcement: r.enforcement as "hard_deny" | "advisory",
+          componentTag: r.componentTag,
+        });
+      }
+
+      // Query MigrationRule nodes
+      const migrationRecords = await client.runRead<{
+        id: string; fromTag: string; toTag: string; status: string;
+      }>(
+        `MATCH (m:MigrationRule)
+         RETURN m.id AS id, m.fromTag AS fromTag, m.toTag AS toTag,
+                coalesce(m.status, 'unknown') AS status
+         LIMIT 200`,
+        {},
+      );
+      for (const r of migrationRecords) {
+        migrationRules.push({
+          id: r.id,
+          fromTag: r.fromTag,
+          toTag: r.toTag,
+          status: r.status as MigrationRuleNode["status"],
+        });
+      }
+    } catch {
+      // Neo4j unavailable — return empty (non-fatal)
+    } finally {
+      if (client) {
+        try { await client.close(); } catch { /* ignore */ }
+      }
+    }
+
+    return { graphPolicies, migrationRules };
   }
 }

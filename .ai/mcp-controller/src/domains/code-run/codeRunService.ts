@@ -30,6 +30,7 @@ export async function executeCodeRun(request: CodeRunRequest): Promise<CodeRunEx
     const value = await runAsyncIife({
       iife: request.iife,
       timeoutMs: request.timeoutMs,
+      memoryCapMb: request.memoryCapMb,
       context: request.declaredInputs
     });
     const shape = validateReturnShape(value, request.expectedReturnShape);

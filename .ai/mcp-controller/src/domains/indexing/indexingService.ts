@@ -4,9 +4,10 @@ import { existsSync } from "node:fs";
 import type { GatewayConfig } from "../../config/types";
 import { LexicalIndex, type LexicalHit } from "../../infrastructure/lexical-index/lexicalIndex";
 import { resolveRepoRoot, resolveTargetRepoRoot } from "../../shared/fsPaths";
+import { loadGitignoreFilterWithAncestors, type GitignoreFilter } from "../../shared/gitignoreFilter";
 import { replaceWithGuard } from "../../shared/replaceGuard";
-import { createTsMorphProject, parseAngularTemplate, parseAngularTemplateUsage, parseAngularTemplateNav, type TemplateNavFacts } from "./astTooling";
-import { parseRouteConfig, isLikelyRouteFile, type ParsedRoute, type RouteParseResult } from "./routeParser";
+import { createTsMorphProject, parseAngularTemplate, parseAngularTemplateUsage, parseAngularTemplateNav, parseAngularTemplateDirectives, extractInlineTemplates, type TemplateNavFacts, type TemplateDirectiveUsage } from "./astTooling";
+import { parseRouteConfig, isLikelyRouteFile, type ParsedRoute, type RouteParseResult, type GuardDetail } from "./routeParser";
 
 export interface SymbolHit {
   symbol: string;
@@ -41,7 +42,35 @@ export interface IndexingFailure {
 }
 
 /** Route fact re-exported so consumers don't need to import routeParser directly */
-export type { ParsedRoute } from "./routeParser";
+export type { ParsedRoute, GuardDetail } from "./routeParser";
+/** Template directive type re-exported from astTooling */
+export type { TemplateDirectiveUsage } from "./astTooling";
+
+/**
+ * Resolved guard — links a guard name back to its definition file and
+ * the files it imports (constants, services, enums — whatever they are).
+ * This enables the chain: Route → Guard → dependency files.
+ *
+ * The resolution is generic — it traces ALL imports of the guard's
+ * definition file, not just files named "roles" or "permissions".
+ */
+export interface ResolvedGuard {
+  /** Guard function or class name */
+  name: string;
+  /** File where the guard is defined (repo-relative) */
+  definitionFile: string | null;
+  /** Symbol kind (function, class, variable) */
+  kind: SymbolHit["kind"] | null;
+  /** Files that the guard's definition file imports (repo-relative) —
+   *  these are whatever the guard depends on (constants, services, etc.) */
+  importedFiles: string[];
+  /** Named imports pulled in by the guard's definition file */
+  importedSymbols: string[];
+  /** Routes that use this guard (fullPath list) */
+  usedByRoutes: string[];
+  /** Structured guard instances across routes */
+  instances: Array<{ routePath: string; guardType: GuardDetail["guardType"]; args: string[] }>;
+}
 
 /** Template-level navigation fact: routerLink reference found in a template */
 export interface TemplateRouterLinkFact {
@@ -52,6 +81,59 @@ export interface TemplateRouterLinkFact {
   isBound: boolean;
 }
 
+/** Custom directive usage found in a template */
+export interface DirectiveUsageFact {
+  /** Directive name as it appears (e.g. "appHasRole", "appHighlight", "tooltip") */
+  directiveName: string;
+  /** The bound expression or static value (e.g. "'ADMIN'", "someCondition") */
+  boundExpression: string | null;
+  /** Template file path (repo-relative) */
+  filePath: string;
+  /** 0-based line number */
+  line: number;
+  /** Host element tag (e.g. "div", "button", "ng-template") */
+  hostTag: string;
+  /** Whether this is a structural directive (*appXyz) */
+  isStructural: boolean;
+}
+
+/**
+ * Resolved directive — links a directive name extracted from templates back
+ * to its @Directive class definition file and traces imports to discover
+ * the files it depends on (constants, services, enums — whatever they are).
+ *
+ * Chain: Template → directive usage → @Directive class → imports → dependency files
+ *
+ * The resolution is generic — it does NOT assume the directive is role/permission
+ * related.  Classification happens downstream from the resolved import chain,
+ * not from hardcoded patterns.
+ */
+export interface ResolvedDirective {
+  /** Directive name as extracted from templates (e.g. "appHasRole", "appHighlight") */
+  directiveName: string;
+  /** All distinct bound expressions used with this directive across templates */
+  boundExpressions: string[];
+  /** File where the @Directive class is defined (repo-relative) */
+  definitionFile: string | null;
+  /** The @Directive class name (e.g. "HasRoleDirective", "HighlightDirective") */
+  className: string | null;
+  /** Symbol kind */
+  kind: SymbolHit["kind"] | null;
+  /** Files that the directive class imports (repo-relative) —
+   *  these are the constant/service/enum dependencies */
+  importedFiles: string[];
+  /** Named imports pulled in by the directive definition */
+  importedSymbols: string[];
+  /** Template files that use this directive (repo-relative) */
+  usedInTemplates: string[];
+}
+
+/**
+ * @deprecated — Retained only as a fallback reference. Actual exclusion is now
+ * handled by `loadGitignoreFilterWithAncestors()` in `shared/gitignoreFilter.ts`,
+ * which reads the target repo's `.gitignore` AND applies a safety-net set of
+ * always-excluded segments (node_modules, dist, .angular, .git, etc.).
+ */
 const HARD_EXCLUDED_PATH_SEGMENTS = new Set([
   "node_modules",
   "dist",
@@ -86,6 +168,7 @@ export class IndexingService {
   private readonly routeParseNotes: string[] = [];
   private readonly templateRouterLinks: TemplateRouterLinkFact[] = [];
   private readonly routerOutletFiles = new Set<string>();
+  private readonly directiveUsages: DirectiveUsageFact[] = [];
   private indexedFilePaths: string[] = [];
   private indexedAt = "";
 
@@ -100,17 +183,30 @@ export class IndexingService {
     this.routeParseNotes.length = 0;
     this.templateRouterLinks.length = 0;
     this.routerOutletFiles.clear();
+    this.directiveUsages.length = 0;
     this.indexedFilePaths = [];
 
     const roots = resolveIngestionRoots(repoRoot, this.config);
-    const files = await collectFilesAcrossRoots(roots, this.config.ingestion.excludes);
+    const gitFilter = loadGitignoreFilterWithAncestors(repoRoot, resolveRepoRoot());
+    const files = await collectFilesAcrossRoots(roots, this.config.ingestion.excludes, repoRoot, gitFilter);
     this.indexedFilePaths = files;
     for (const filePath of files) {
       try {
         const content = await readFile(filePath, "utf8");
         this.lexicalIndex.addDocument(filePath, content);
+
+        // Determine template sources to parse:
+        //  - .html files: the whole file is a template
+        //  - .ts files: extract inline `template: \`...\`` strings
+        const templateSources: string[] = [];
         if (filePath.endsWith(".html")) {
-          const template = parseAngularTemplate(content);
+          templateSources.push(content);
+        } else if (filePath.endsWith(".ts")) {
+          templateSources.push(...extractInlineTemplates(content));
+        }
+
+        for (const templateContent of templateSources) {
+          const template = parseAngularTemplate(templateContent);
           if (template.errors.length > 0) {
             this.failures.push({
               filePath,
@@ -118,10 +214,10 @@ export class IndexingService {
             });
           }
           // Phase 4: Extract component usage facts from templates
-          const usageFacts = parseAngularTemplateUsage(content, filePath);
+          const usageFacts = parseAngularTemplateUsage(templateContent, filePath);
           this.templateUsageFacts.push(...usageFacts);
           // Phase 5: Extract navigation facts (routerLink, router-outlet)
-          const navFacts = parseAngularTemplateNav(content, filePath);
+          const navFacts = parseAngularTemplateNav(templateContent, filePath);
           if (navFacts.hasRouterOutlet) {
             this.routerOutletFiles.add(filePath);
           }
@@ -132,6 +228,18 @@ export class IndexingService {
               line: link.line,
               hostTag: link.hostTag,
               isBound: link.isBound,
+            });
+          }
+          // Phase 6: Extract custom directive usages from templates
+          const directiveFacts = parseAngularTemplateDirectives(templateContent, filePath);
+          for (const usage of directiveFacts.usages) {
+            this.directiveUsages.push({
+              directiveName: usage.directiveName,
+              boundExpression: usage.boundExpression,
+              filePath,
+              line: usage.line,
+              hostTag: usage.hostTag,
+              isStructural: usage.isStructural,
             });
           }
         }
@@ -247,6 +355,188 @@ export class IndexingService {
     return [...this.routerOutletFiles];
   }
 
+  /**
+   * Phase 6: Returns custom directive usages found in templates.
+   * These track where templates use custom directives (structural or attribute).
+   * No filtering by role/permission — ALL custom directives are captured.
+   */
+  getDirectiveUsages(limit = 2000): DirectiveUsageFact[] {
+    return this.directiveUsages.slice(0, limit);
+  }
+
+  /**
+   * Phase 6: Resolve directive names from template usages to their @Directive
+   * class definitions and trace imports to discover dependency files.
+   *
+   * Chain: Template → directive name → symbol map → @Directive class → imports
+   *
+   * Works identically to getResolvedGuards() but for template-level directives.
+   * The resolution is generic — it captures ALL custom directives, not just
+   * role/permission ones.  The import chain reveals what each directive depends on.
+   */
+  getResolvedDirectives(): ResolvedDirective[] {
+    const directiveMap = new Map<string, ResolvedDirective>();
+
+    for (const usage of this.directiveUsages) {
+      let entry = directiveMap.get(usage.directiveName);
+      if (!entry) {
+        // Try to resolve the directive name to a @Directive class via the symbol map.
+        // Directive classes typically follow the pattern: HasRoleDirective, AppHasPermissionDirective
+        // We search for the directive name + "Directive" suffix variants
+        const candidates = [
+          usage.directiveName + "Directive",           // appHasRole → appHasRoleDirective
+          capitalize(usage.directiveName) + "Directive", // appHasRole → AppHasRoleDirective
+          usage.directiveName,                          // direct name match
+        ];
+
+        let bestHit: SymbolHit | null = null;
+        for (const candidate of candidates) {
+          const hits = this.searchSymbol(candidate, 5);
+          const exactMatch = hits.find((h) => h.symbol.toLowerCase() === candidate.toLowerCase());
+          if (exactMatch) {
+            bestHit = exactMatch;
+            break;
+          }
+          if (!bestHit && hits.length > 0) {
+            bestHit = hits[0];
+          }
+        }
+
+        entry = {
+          directiveName: usage.directiveName,
+          boundExpressions: [],
+          definitionFile: bestHit?.filePath ?? null,
+          className: bestHit?.symbol ?? null,
+          kind: bestHit?.kind ?? null,
+          importedFiles: [],
+          importedSymbols: [],
+          usedInTemplates: [],
+        };
+
+        // If we found the definition file, trace its imports
+        if (bestHit?.filePath) {
+          try {
+            const project = createTsMorphProject(resolveTsConfigPath(resolveTargetRepoRoot()));
+            const sourceFile = project.addSourceFileAtPathIfExists(bestHit.filePath);
+            if (sourceFile) {
+              for (const imp of sourceFile.getImportDeclarations()) {
+                const moduleSpecifier = imp.getModuleSpecifierValue();
+                if (moduleSpecifier.startsWith(".")) {
+                  const resolvedPath = resolveImportPath(moduleSpecifier, bestHit.filePath);
+                  if (resolvedPath) {
+                    entry.importedFiles.push(resolvedPath);
+                  }
+                }
+                for (const named of imp.getNamedImports()) {
+                  entry.importedSymbols.push(named.getName());
+                }
+                const defaultImport = imp.getDefaultImport();
+                if (defaultImport) {
+                  entry.importedSymbols.push(defaultImport.getText());
+                }
+              }
+            }
+          } catch {
+            // Import resolution failures are non-fatal
+          }
+        }
+
+        directiveMap.set(usage.directiveName, entry);
+      }
+
+      // Track bound expressions and template files
+      if (usage.boundExpression && !entry.boundExpressions.includes(usage.boundExpression)) {
+        entry.boundExpressions.push(usage.boundExpression);
+      }
+      if (!entry.usedInTemplates.includes(usage.filePath)) {
+        entry.usedInTemplates.push(usage.filePath);
+      }
+    }
+
+    return [...directiveMap.values()];
+  }
+
+  /**
+   * Phase 6: Resolve guard names from parsed routes to their definition files
+   * and trace one level of imports to discover role/permission constant files.
+   *
+   * Chain: Route \u2192 guard name \u2192 symbol map \u2192 definition file \u2192 imports \u2192 roles.ts / permissions.ts
+   *
+   * This powers the contextPack guard metadata: when a JIRA ticket says
+   * "add role pi-int-stuff", the agent can trace from the guard back to
+   * the constants file that needs editing.
+   */
+  getResolvedGuards(): ResolvedGuard[] {
+    // Collect all guard details across all parsed routes
+    const guardMap = new Map<string, ResolvedGuard>();
+
+    for (const route of this.parsedRoutes) {
+      for (const detail of route.guardDetails) {
+        let entry = guardMap.get(detail.name);
+        if (!entry) {
+          // Resolve guard name to a symbol definition file via the symbol map
+          const symbolHits = this.searchSymbol(detail.name, 5);
+          const bestHit = symbolHits.find((h) => h.symbol === detail.name) ?? symbolHits[0] ?? null;
+
+          entry = {
+            name: detail.name,
+            definitionFile: bestHit?.filePath ?? null,
+            kind: bestHit?.kind ?? null,
+            importedFiles: [],
+            importedSymbols: [],
+            usedByRoutes: [],
+            instances: [],
+          };
+
+          // If we found the definition file, trace its imports to find
+          // role/permission/constant dependencies
+          if (bestHit?.filePath) {
+            try {
+              const project = createTsMorphProject(resolveTsConfigPath(resolveTargetRepoRoot()));
+              const sourceFile = project.addSourceFileAtPathIfExists(bestHit.filePath);
+              if (sourceFile) {
+                for (const imp of sourceFile.getImportDeclarations()) {
+                  const moduleSpecifier = imp.getModuleSpecifierValue();
+                  // Resolve relative imports to repo-relative paths
+                  if (moduleSpecifier.startsWith(".")) {
+                    const resolvedPath = resolveImportPath(moduleSpecifier, bestHit.filePath);
+                    if (resolvedPath) {
+                      entry.importedFiles.push(resolvedPath);
+                    }
+                  }
+                  // Capture named import identifiers (ROLES, Permissions, AuthService, etc.)
+                  for (const named of imp.getNamedImports()) {
+                    entry.importedSymbols.push(named.getName());
+                  }
+                  // Capture default imports
+                  const defaultImport = imp.getDefaultImport();
+                  if (defaultImport) {
+                    entry.importedSymbols.push(defaultImport.getText());
+                  }
+                }
+              }
+            } catch {
+              // Import resolution failures are non-fatal — we still have the guard name + definition file
+            }
+          }
+          guardMap.set(detail.name, entry);
+        }
+
+        // Track which routes use this guard and with which arguments
+        if (!entry.usedByRoutes.includes(route.fullPath)) {
+          entry.usedByRoutes.push(route.fullPath);
+        }
+        entry.instances.push({
+          routePath: route.fullPath,
+          guardType: detail.guardType,
+          args: detail.args,
+        });
+      }
+    }
+
+    return [...guardMap.values()];
+  }
+
   private async rebuildSymbolIndex(repoRoot: string, files: string[]): Promise<void> {
     const project = createTsMorphProject(resolveTsConfigPath(repoRoot));
     for (const filePath of files) {
@@ -328,7 +618,12 @@ function resolveTsConfigPath(repoRoot: string): string {
   return primary;
 }
 
-async function collectFiles(root: string, excludes: string[]): Promise<string[]> {
+async function collectFiles(
+  root: string,
+  excludes: string[],
+  repoRoot: string,
+  gitFilter: GitignoreFilter,
+): Promise<string[]> {
   const output: string[] = [];
   const queue = [root];
   while (queue.length > 0) {
@@ -340,8 +635,21 @@ async function collectFiles(root: string, excludes: string[]): Promise<string[]>
       continue;
     }
     for (const entry of entries) {
+      // Fast path: skip entries whose name alone is always-excluded
+      // (avoids computing relative paths for node_modules, dist, etc.)
+      if (gitFilter.isHardExcludedSegment(entry.name)) {
+        continue;
+      }
       const fullPath = path.join(current, entry.name);
       const normalized = normalizeSlashes(fullPath);
+
+      // Compute repo-relative path for .gitignore matching
+      const relative = normalizeSlashes(path.relative(repoRoot, fullPath));
+      if (gitFilter.isIgnored(relative)) {
+        continue;
+      }
+
+      // Legacy hard-exclude check (belt + suspenders)
       if (shouldHardExcludePath(normalized)) {
         continue;
       }
@@ -361,10 +669,15 @@ async function collectFiles(root: string, excludes: string[]): Promise<string[]>
   return output;
 }
 
-async function collectFilesAcrossRoots(roots: string[], excludes: string[]): Promise<string[]> {
+async function collectFilesAcrossRoots(
+  roots: string[],
+  excludes: string[],
+  repoRoot: string,
+  gitFilter: GitignoreFilter,
+): Promise<string[]> {
   const files = new Set<string>();
   for (const root of roots) {
-    const scoped = await collectFiles(root, excludes);
+    const scoped = await collectFiles(root, excludes, repoRoot, gitFilter);
     for (const filePath of scoped) {
       files.add(filePath);
     }
@@ -499,4 +812,30 @@ function addSymbols(
 
 function isString(value: string | undefined): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * Resolve a relative import specifier (e.g. '../shared/roles') to a
+ * repo-relative file path, given the importing file's absolute path.
+ * Tries .ts extension first, then /index.ts.
+ */
+function resolveImportPath(moduleSpecifier: string, fromFilePath: string): string | null {
+  if (!moduleSpecifier.startsWith(".")) return null;
+  const fromDir = path.dirname(fromFilePath);
+  const resolved = path.resolve(fromDir, moduleSpecifier);
+  const normalized = normalizeSlashes(resolved);
+
+  // Try direct .ts
+  const withTs = normalized.endsWith(".ts") ? normalized : `${normalized}.ts`;
+  if (existsSync(withTs)) return withTs;
+
+  // Try /index.ts (barrel re-exports)
+  const indexTs = `${normalized}/index.ts`;
+  if (existsSync(indexTs)) return indexTs;
+
+  return withTs; // Return best guess even if file doesn't exist (may be .js, etc.)
 }
