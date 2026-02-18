@@ -1,6 +1,8 @@
 import type { PlanGraphDocument } from "./planGraph";
 
 export type RunState =
+  | "UNINITIALIZED"
+  | "PLANNING"
   | "PLAN_REQUIRED"
   | "PLAN_ACCEPTED"
   | "EXECUTION_ENABLED"
@@ -51,6 +53,8 @@ export interface TurnResponse {
   };
   result: Record<string, unknown>;
   denyReasons: string[];
+  /** The original user prompt — always present, replaces get_original_prompt verb. */
+  originalPrompt: string;
   /** When the controller denies a request, this tells the agent what to do next. */
   suggestedAction?: {
     verb: string;
@@ -61,6 +65,12 @@ export interface TurnResponse {
     strategyId: string;
     contextSignature?: Record<string, unknown>;
     reasons: Array<{ reason: string; evidenceRef: string }>;
+  };
+  progress: {
+    totalNodes: number;
+    completedNodes: number;
+    remainingNodes: number;
+    pendingValidations: Array<{ nodeId: string; status: string }>;
   };
   budgetStatus: {
     maxTokens: number;

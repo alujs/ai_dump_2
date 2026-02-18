@@ -19,6 +19,17 @@ import {
   asStringArray,
 } from "../turnHelpers";
 
+/**
+ * Mark a plan node as completed in the session's progress tracker.
+ * Idempotent — re-completing the same nodeId is a no-op.
+ */
+function markNodeCompleted(session: SessionState, nodeId: string): void {
+  if (!session.planGraphProgress) return;
+  if (session.planGraphProgress.completedNodeIds.includes(nodeId)) return;
+  session.planGraphProgress.completedNodeIds.push(nodeId);
+  session.planGraphProgress.completedNodes = session.planGraphProgress.completedNodeIds.length;
+}
+
 export async function handlePatchApply(
   collisionScopeKey: string,
   args: Record<string, unknown> | undefined,
@@ -137,6 +148,7 @@ export async function handlePatchApply(
       resultRef: bundle.resultRef,
       diffSummaryRef: bundle.diffSummaryRef,
     };
+    markNodeCompleted(session, request.nodeId);
     return { result, denyReasons, stateOverride: "EXECUTION_ENABLED" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "PATCH_FAILED";
@@ -220,6 +232,7 @@ export async function handleCodeRun(
     resultRef: bundle.resultRef,
     valueSummary: summarizeValue(execution.value),
   };
+  markNodeCompleted(session, request.nodeId);
   return { result, denyReasons, stateOverride: "EXECUTION_ENABLED" };
 }
 
@@ -295,5 +308,6 @@ export async function handleSideEffect(
   });
 
   result.sideEffect = { accepted: true, artifactBundleRef: bundle.bundleDir };
+  markNodeCompleted(session, nodeId);
   return { result, denyReasons, stateOverride: "EXECUTION_ENABLED" };
 }

@@ -23,7 +23,9 @@ export const CONTROLLER_TURN_INPUT_SCHEMA = {
 export const TOOL_DESCRIPTION =
   "Gateway controller tool for plan-safe and policy-gated work execution. " +
   "Single chokepoint for all agent interaction: capability gating, evidence-backed planning, " +
-  "scoped execution, and observability-driven memory/policy evolution.";
+  "scoped execution, and observability-driven memory/policy evolution. " +
+  "Start every session with verb='initialize_work' to receive a contextPack, strategy, and planGraphSchema. " +
+  "All subsequent reads are pack-scoped. Use 'escalate' to request additional context.";
 
 /**
  * Parse raw tool arguments into a typed TurnRequest.

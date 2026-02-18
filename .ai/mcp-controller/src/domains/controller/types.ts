@@ -15,6 +15,16 @@ export interface SessionState {
   planGraph?: PlanGraphDocument;
   scopeAllowlist: ScopeAllowlist | null;
   artifacts: ConnectorArtifact[];
+  contextPack?: {
+    ref: string;
+    hash: string;
+    files: string[];
+  };
+  planGraphProgress?: {
+    totalNodes: number;
+    completedNodes: number;
+    completedNodeIds: string[];
+  };
 }
 
 export interface VerbResult {

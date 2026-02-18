@@ -2,6 +2,7 @@ import type { RunState } from "../../../contracts/controller";
 import type { PlanGraphDocument } from "../../../contracts/planGraph";
 import type { VerbResult, SessionState } from "../types";
 import { validatePlanGraph } from "../../plan-graph/planGraphValidator";
+import type { EnforcementBundle } from "../../plan-graph/enforcementBundle";
 import type { MemoryService } from "../../memory/memoryService";
 import { loadScopeAllowlist } from "../../worktree-scope/worktreeScopeService";
 import { repoSnapshotId } from "../../../infrastructure/git/repoSnapshot";
@@ -44,11 +45,14 @@ export async function handleSubmitPlan(
     }
   }
 
-  const validation = validatePlanGraph(planGraph, activeMemories);
+  // Phase 5: Compute enforcement bundle if session has one cached
+  const enforcementBundle = (session as SessionState & { enforcementBundle?: EnforcementBundle }).enforcementBundle;
+
+  const validation = validatePlanGraph(planGraph, activeMemories, enforcementBundle);
   if (!validation.ok) {
     denyReasons.push(...validation.rejectionCodes);
     result.error = "Plan graph validation failed. See result.validationDiagnostics for the specific issues to fix.";
-    result.validationDiagnostics = validation.memoryRuleResults ?? validation.rejectionCodes;
+    result.validationDiagnostics = validation.memoryRuleResults ?? validation.graphPolicyResults ?? validation.rejectionCodes;
     return { result, denyReasons, stateOverride: "PLAN_REQUIRED" };
   }
 
@@ -75,6 +79,16 @@ export async function handleSubmitPlan(
 
   session.planGraph = planGraph;
   session.scopeAllowlist = await loadScopeAllowlist(planGraph.scopeAllowlistRef);
+
+  // Initialize progress tracking (Architecture v2 §8)
+  const actionableNodes = planGraph.nodes.filter(
+    (n: { kind: string }) => n.kind === "change" || n.kind === "validate" || n.kind === "side_effect"
+  );
+  session.planGraphProgress = {
+    totalNodes: actionableNodes.length,
+    completedNodes: 0,
+    completedNodeIds: [],
+  };
 
   result.planValidation = "passed";
   result.repoSnapshotId = await repoSnapshotId();

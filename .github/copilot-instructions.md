@@ -1,1 +1,3 @@
 When all implementation tasks are complete, call `signal_task_complete` with an optional `summary` to generate a session retrospective. This triggers friction analysis, memory candidate scaffolding, and a report of pending memories that need human review.
+
+Always pass your `agentId` in every `controller_turn` call. If you are a sub-agent spawned by another agent, use a unique agentId so your actions are tracked separately. The MCP controller shares contextPack and planGraph across all agents within the same `workId`, but tracks per-agent action counts, rejections, and budget slices independently. If you omit `agentId`, the controller will auto-assign one for you.

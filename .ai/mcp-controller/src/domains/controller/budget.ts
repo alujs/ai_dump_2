@@ -17,7 +17,7 @@ export function consumeBudget(
 }
 
 export function isBudgetSafeVerb(verb: string): boolean {
-  return verb === "list_available_verbs" || verb === "get_original_prompt" || verb === "request_evidence_guidance" || verb === "signal_task_complete";
+  return verb === "initialize_work" || verb === "escalate" || verb === "signal_task_complete";
 }
 
 function estimateTokenCost(request: TurnRequest): number {

@@ -16,23 +16,11 @@ export interface VerbDescriptor {
 }
 
 const CATALOG: Record<string, VerbDescriptor> = {
-  list_available_verbs: {
-    description: "List all verbs available in the current run-state, with descriptions and argument schemas.",
-    whenToUse: "At the start of a session or when unsure what verbs are available.",
+  initialize_work: {
+    description: "Bootstrap a work session. Sends prompt + lexemes, receives contextPack + strategy + planGraphSchema.",
+    whenToUse: "First call of every session. Only verb available in UNINITIALIZED state.",
     requiredArgs: [],
-    optionalArgs: [],
-  },
-  list_scoped_files: {
-    description: "List files in scope for reading/patching within the current work unit.",
-    whenToUse: "Before reading or patching, to discover which files you have access to.",
-    requiredArgs: [],
-    optionalArgs: [],
-  },
-  list_directory_contents: {
-    description: "List entries (files and folders) in a directory within the allowed scope.",
-    whenToUse: "To explore folder structure before reading specific files.",
-    requiredArgs: [],
-    optionalArgs: ["targetDir"],
+    optionalArgs: ["lexemes", "attachments"],
   },
   read_file_lines: {
     description: "Read a line range from a file within the allowed scope. Returns the source code content.",
@@ -58,23 +46,11 @@ const CATALOG: Record<string, VerbDescriptor> = {
     requiredArgs: ["pattern"],
     optionalArgs: ["isRegex", "fileGlob", "maxResults"],
   },
-  fetch_jira_ticket: {
-    description: "Fetch a Jira ticket by key. Returns ticket summary, description, acceptance criteria, and labels.",
-    whenToUse: "When the work references a Jira ticket and you need its requirements.",
-    requiredArgs: ["ticketKey"],
-    optionalArgs: [],
-  },
-  fetch_api_spec: {
-    description: "Fetch an OpenAPI/Swagger spec by URL or alias. Returns endpoint schemas and contracts.",
-    whenToUse: "When the work involves API endpoints and you need the API contract.",
-    requiredArgs: ["specUrl"],
-    optionalArgs: [],
-  },
-  get_original_prompt: {
-    description: "Retrieve the original user prompt for this work unit.",
-    whenToUse: "When you need to re-read the original task description.",
-    requiredArgs: [],
-    optionalArgs: [],
+  escalate: {
+    description: "Request additional context. MCP searches and adds to contextPack.",
+    whenToUse: "When contextPack is insufficient to build a plan. Replaces request_evidence_guidance.",
+    requiredArgs: ["need"],
+    optionalArgs: ["requestedEvidence", "type"],
   },
   write_scratch_file: {
     description: "Write a temporary file to the scratch area (not the worktree). For intermediate drafts, not final patches.",
@@ -87,12 +63,6 @@ const CATALOG: Record<string, VerbDescriptor> = {
     whenToUse: "After gathering enough evidence (minimum 2 distinct sources), submit your plan to advance to execution state.",
     requiredArgs: ["plan"],
     optionalArgs: [],
-  },
-  request_evidence_guidance: {
-    description: "Signal that you are stuck and need guidance on gathering evidence. Returns targeted advice, available evidence-gathering verbs, and the evidence threshold you must meet.",
-    whenToUse: "When you cannot find enough evidence to submit a plan, when you are unsure what to do next, or when your plan was denied for insufficient evidence.",
-    requiredArgs: ["blockingReasons"],
-    optionalArgs: ["requestedEvidence", "knownSymbols", "exploredFiles", "note"],
   },
   apply_code_patch: {
     description: "Apply a structured code patch to a file in the worktree. Requires an accepted execution plan.",

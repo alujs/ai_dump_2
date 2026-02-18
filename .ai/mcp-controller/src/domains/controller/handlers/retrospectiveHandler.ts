@@ -25,6 +25,28 @@ export async function handleSignalTaskComplete(
   const summary = String(args?.summary ?? "").trim();
   const lessonsLearned = args?.lessonsLearned;
 
+  /* ── Gate: reject if plan nodes remain incomplete (§8) ── */
+  if (session.planGraphProgress) {
+    const remaining = session.planGraphProgress.totalNodes - session.planGraphProgress.completedNodes;
+    if (remaining > 0) {
+      const allNodeIds = session.planGraph?.nodes
+        ?.filter((n: { kind: string }) => n.kind === "change" || n.kind === "validate" || n.kind === "side_effect")
+        .map((n: { nodeId: string }) => n.nodeId) ?? [];
+      const incompleteNodeIds = allNodeIds.filter(
+        (id: string) => !session.planGraphProgress!.completedNodeIds.includes(id)
+      );
+      denyReasons.push("WORK_INCOMPLETE");
+      result.error = `Cannot signal task complete: ${remaining} plan node(s) remain incomplete.`;
+      result.remainingNodes = incompleteNodeIds;
+      result.progress = {
+        totalNodes: session.planGraphProgress.totalNodes,
+        completedNodes: session.planGraphProgress.completedNodes,
+        remainingNodes: remaining,
+      };
+      return { result, denyReasons };
+    }
+  }
+
   /* ── Friction digest ───────────────────────────────────── */
 
   const rejectionHeatmap = eventStore.rejectionHeatmap();

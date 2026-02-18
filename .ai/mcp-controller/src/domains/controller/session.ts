@@ -1,6 +1,7 @@
 import type { SessionState } from "./types";
 import type { RunState, TurnRequest } from "../../contracts/controller";
 import type { EventStore } from "../observability/eventStore";
+import { ensureId } from "../../shared/ids";
 
 export function createSession(
   runSessionId: string,
@@ -11,7 +12,7 @@ export function createSession(
     runSessionId,
     workId,
     agentId,
-    state: "PLAN_REQUIRED",
+    state: "UNINITIALIZED",
     originalPrompt: "",
     rejectionCounts: {},
     actionCounts: {},
@@ -19,6 +20,17 @@ export function createSession(
     scopeAllowlist: null,
     artifacts: [],
   };
+}
+
+/**
+ * Phase 7: Auto-assign an agentId if one is missing or empty.
+ * Returns the provided agentId if valid, otherwise generates a new one.
+ */
+export function resolveAgentId(incomingAgentId: string | undefined): string {
+  if (incomingAgentId && incomingAgentId.trim().length > 0) {
+    return incomingAgentId;
+  }
+  return ensureId(undefined, "agent");
 }
 
 export function resolveOriginalPrompt(

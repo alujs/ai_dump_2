@@ -2,7 +2,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { PACK_BLOCKED_COMMANDS, SCHEMA_VERSION } from "../../shared/constants";
 import { contextRoot } from "../../shared/fsPaths";
-import { writeText } from "../../shared/fileStore";
+import { writeText, readText } from "../../shared/fileStore";
 import type { PackInsufficiency } from "../../contracts/controller";
 import type { MemoryRecord } from "../../contracts/memoryRecord";
 import type { RetrievalLaneResult } from "./retrievalLanes";
@@ -344,5 +344,85 @@ function buildInsufficiency(
     })),
     blockedCommands: [...PACK_BLOCKED_COMMANDS],
     nextRequiredState: "PLAN_REQUIRED"
+  };
+}
+
+/* ── Incremental pack enrichment (Architecture v2 §5) ──── */
+
+export interface EnrichContextPackInput {
+  /** Existing pack ref path */
+  packRef: string;
+  /** New files to add (monotonic — never removes existing) */
+  newFiles: string[];
+  /** New symbols discovered */
+  newSymbols?: string[];
+}
+
+export interface EnrichContextPackOutput {
+  /** Updated pack ref */
+  contextPackRef: string;
+  /** Recomputed SHA-256 hash */
+  contextPackHash: string;
+  /** Files that were actually new (not already in pack) */
+  addedFiles: string[];
+  /** Total file count after merge */
+  totalFiles: number;
+  /** Whether the hash changed */
+  hashChanged: boolean;
+}
+
+/**
+ * Enriches an existing context pack by adding new files/symbols.
+ * Monotonic: files are only ever added, never removed.
+ * Recomputes the SHA-256 hash after merge.
+ */
+export async function enrichContextPack(input: EnrichContextPackInput): Promise<EnrichContextPackOutput> {
+  let existingPayload: Record<string, unknown> = {};
+  let existingFiles: string[] = [];
+  let previousHash = "";
+
+  // Read existing pack if it exists
+  try {
+    const raw = await readText(input.packRef);
+    existingPayload = JSON.parse(raw);
+    const scope = existingPayload.scope as { allowedFiles?: string[] } | undefined;
+    existingFiles = scope?.allowedFiles ?? [];
+    const header = existingPayload.header as { contextPackHash?: string } | undefined;
+    previousHash = header?.contextPackHash ?? "";
+  } catch {
+    // Pack doesn't exist yet — start fresh
+  }
+
+  // Monotonic merge: add only truly new files
+  const normalizedExisting = new Set(existingFiles.map((f) => f.replace(/\\/g, "/")));
+  const addedFiles = input.newFiles.filter((f) => !normalizedExisting.has(f.replace(/\\/g, "/")));
+  const mergedFiles = [...existingFiles, ...addedFiles];
+
+  // Recompute hash
+  const hashSource = JSON.stringify({ ...existingPayload, scope: { ...((existingPayload.scope as object) ?? {}), allowedFiles: mergedFiles } });
+  const contextPackHash = createHash("sha256").update(hashSource).digest("hex");
+  const hashChanged = contextPackHash !== previousHash;
+
+  // Update pack on disk
+  const updatedPayload = {
+    ...existingPayload,
+    header: {
+      ...((existingPayload.header as object) ?? {}),
+      contextPackHash,
+    },
+    scope: {
+      ...((existingPayload.scope as object) ?? {}),
+      allowedFiles: mergedFiles,
+    },
+  };
+
+  await writeText(input.packRef, JSON.stringify(updatedPayload, null, 2));
+
+  return {
+    contextPackRef: input.packRef,
+    contextPackHash,
+    addedFiles,
+    totalFiles: mergedFiles.length,
+    hashChanged,
   };
 }

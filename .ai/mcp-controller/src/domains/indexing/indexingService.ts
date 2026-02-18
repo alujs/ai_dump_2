@@ -5,12 +5,33 @@ import type { GatewayConfig } from "../../config/types";
 import { LexicalIndex, type LexicalHit } from "../../infrastructure/lexical-index/lexicalIndex";
 import { resolveRepoRoot, resolveTargetRepoRoot } from "../../shared/fsPaths";
 import { replaceWithGuard } from "../../shared/replaceGuard";
-import { createTsMorphProject, parseAngularTemplate } from "./astTooling";
+import { createTsMorphProject, parseAngularTemplate, parseAngularTemplateUsage } from "./astTooling";
 
 export interface SymbolHit {
   symbol: string;
   filePath: string;
   kind: "class" | "function" | "interface" | "enum" | "type" | "variable";
+}
+
+/** High-signal symbol extracted during indexing — suitable for graph ingestion */
+export interface SymbolHeader {
+  symbol: string;
+  filePath: string;
+  kind: SymbolHit["kind"];
+  /** True for route-boundary components, key services, DTOs, etc. */
+  highSignal: boolean;
+}
+
+/** Component tag usage fact extracted from Angular templates */
+export interface TemplateUsageFact {
+  tag: string;
+  filePath: string;
+  line: number;
+  attributes: string[];
+  /** Whether the tag is from the ADP library */
+  isAdp: boolean;
+  /** Whether the tag is from the SDF library */
+  isSdf: boolean;
 }
 
 export interface IndexingFailure {
@@ -47,6 +68,7 @@ export class IndexingService {
   private readonly lexicalIndex = new LexicalIndex();
   private readonly symbolMap = new Map<string, SymbolHit[]>();
   private readonly failures: IndexingFailure[] = [];
+  private readonly templateUsageFacts: TemplateUsageFact[] = [];
   private indexedAt = "";
 
   constructor(private readonly config: GatewayConfig) {}
@@ -55,6 +77,7 @@ export class IndexingService {
     this.lexicalIndex.clear();
     this.symbolMap.clear();
     this.failures.length = 0;
+    this.templateUsageFacts.length = 0;
 
     const roots = resolveIngestionRoots(repoRoot, this.config);
     const files = await collectFilesAcrossRoots(roots, this.config.ingestion.excludes);
@@ -70,6 +93,9 @@ export class IndexingService {
               reason: template.errors.join(" | ")
             });
           }
+          // Phase 4: Extract component usage facts from templates
+          const usageFacts = parseAngularTemplateUsage(content, filePath);
+          this.templateUsageFacts.push(...usageFacts);
         }
       } catch (error) {
         this.failures.push({
@@ -115,6 +141,39 @@ export class IndexingService {
 
   getIndexedAt(): string {
     return this.indexedAt;
+  }
+
+  /**
+   * Phase 4: Returns high-signal symbol headers suitable for graph ingestion.
+   * High-signal = interfaces, types, DTOs, route-boundary components, key services.
+   */
+  getSymbolHeaders(limit = 500): SymbolHeader[] {
+    const headers: SymbolHeader[] = [];
+    const HIGH_SIGNAL_KINDS = new Set<SymbolHit["kind"]>(["interface", "type", "enum"]);
+    const HIGH_SIGNAL_SUFFIXES = ["Component", "Service", "Module", "Directive", "Pipe", "Guard", "Resolver", "Store", "DTO", "Model", "Entity"];
+
+    for (const [, hits] of this.symbolMap) {
+      for (const hit of hits) {
+        const highSignal = HIGH_SIGNAL_KINDS.has(hit.kind)
+          || HIGH_SIGNAL_SUFFIXES.some((s) => hit.symbol.endsWith(s));
+        headers.push({
+          symbol: hit.symbol,
+          filePath: hit.filePath,
+          kind: hit.kind,
+          highSignal,
+        });
+        if (headers.length >= limit) return headers;
+      }
+    }
+    return headers;
+  }
+
+  /**
+   * Phase 4: Returns component usage facts from Angular templates.
+   * Includes adp and sdf tag usage with file/line/attribute data.
+   */
+  getTemplateUsageFacts(limit = 1000): TemplateUsageFact[] {
+    return this.templateUsageFacts.slice(0, limit);
   }
 
   private async rebuildSymbolIndex(repoRoot: string, files: string[]): Promise<void> {

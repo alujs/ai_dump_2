@@ -2,11 +2,14 @@ import type { PlanGraphDocument, PlanNode, ChangePlanNode } from "../../contract
 import type { MemoryRecord } from "../../contracts/memoryRecord";
 import { validateChangeEvidencePolicy } from "../evidence-policy/evidencePolicyService";
 import { isSupportedAstCodemodId } from "../patch-exec/astCodemodCatalog";
+import type { EnforcementBundle, EphemeralPlanRule } from "./enforcementBundle";
 
 export interface ValidationResult {
   ok: boolean;
   rejectionCodes: string[];
   memoryRuleResults?: MemoryRuleResult[];
+  /** Phase 5: Results from graph policy enforcement */
+  graphPolicyResults?: GraphPolicyResult[];
 }
 
 export interface MemoryRuleResult {
@@ -16,7 +19,20 @@ export interface MemoryRuleResult {
   denyCode: string;
 }
 
-export function validatePlanGraph(plan: PlanGraphDocument, activeMemories?: MemoryRecord[]): ValidationResult {
+/** Phase 5: Result of enforcing an ephemeral graph policy rule */
+export interface GraphPolicyResult {
+  sourceNodeId: string;
+  sourceType: string;
+  condition: string;
+  satisfied: boolean;
+  denyCode: string;
+}
+
+export function validatePlanGraph(
+  plan: PlanGraphDocument,
+  activeMemories?: MemoryRecord[],
+  enforcementBundle?: EnforcementBundle,
+): ValidationResult {
   const rejectionCodes: string[] = [];
 
   validateEnvelope(plan, rejectionCodes);
@@ -32,10 +48,24 @@ export function validatePlanGraph(plan: PlanGraphDocument, activeMemories?: Memo
     }
   }
 
+  // Phase 5: Apply graph policy enforcement bundle (ephemeral rules — not persisted)
+  const graphPolicyResults = enforcementBundle
+    ? validateGraphPolicyRules(plan, enforcementBundle.graphPolicyRules)
+    : [];
+  for (const result of graphPolicyResults) {
+    if (!result.satisfied) {
+      rejectionCodes.push(result.denyCode);
+    }
+  }
+
+  // Phase 6: Validate attachment artifactRef coverage
+  validateAttachmentArtifactRefs(plan.nodes, rejectionCodes);
+
   return {
     ok: rejectionCodes.length === 0,
     rejectionCodes: dedupe(rejectionCodes),
     memoryRuleResults: memoryRuleResults.length > 0 ? memoryRuleResults : undefined,
+    graphPolicyResults: graphPolicyResults.length > 0 ? graphPolicyResults : undefined,
   };
 }
 
@@ -357,6 +387,83 @@ function validateCodemodCitations(node: ChangePlanNode, rejectionCodes: string[]
     const codemodId = payload.split("@")[0]?.trim() ?? "";
     if (!codemodId || !isSupportedAstCodemodId(codemodId)) {
       rejectionCodes.push("PLAN_POLICY_VIOLATION");
+    }
+  }
+}
+
+/* ── Phase 5: Graph policy rule validation ───────────────── */
+
+function validateGraphPolicyRules(
+  plan: PlanGraphDocument,
+  graphPolicyRules: EphemeralPlanRule[],
+): GraphPolicyResult[] {
+  const results: GraphPolicyResult[] = [];
+
+  for (const rule of graphPolicyRules) {
+    const satisfied = checkEphemeralPlanRule(plan, rule);
+    results.push({
+      sourceNodeId: rule.sourceNodeId,
+      sourceType: rule.sourceType,
+      condition: rule.condition,
+      satisfied,
+      denyCode: rule.denyCode,
+    });
+  }
+
+  return results;
+}
+
+function checkEphemeralPlanRule(plan: PlanGraphDocument, rule: EphemeralPlanRule): boolean {
+  // Same logic as checkPlanRule for memory-based rules
+  for (const required of rule.requiredSteps) {
+    const hasMatchingNode = plan.nodes.some((node) => {
+      if (node.kind !== required.kind) return false;
+      if (!required.targetPattern) return true;
+
+      if (node.kind === "change") {
+        const changeNode = node as ChangePlanNode;
+        return changeNode.targetFile.includes(required.targetPattern)
+          || changeNode.targetSymbols.some((s) => s.includes(required.targetPattern!));
+      }
+      if (node.kind === "validate") {
+        return node.verificationHooks.some((h) => h.includes(required.targetPattern!));
+      }
+      return false;
+    });
+
+    if (!hasMatchingNode) return false;
+  }
+
+  return true;
+}
+
+/* ── Phase 6: Attachment artifactRef enforcement ─────────── */
+
+/**
+ * If a change node's citations reference an attachment (inbox:*, attachment:*),
+ * the node's artifactRefs must include a matching entry.
+ * Spec ref: architecture_v2.md §12 lines 517-521.
+ */
+function validateAttachmentArtifactRefs(nodes: PlanNode[], rejectionCodes: string[]): void {
+  const ATTACHMENT_PREFIXES = ["inbox:", "attachment:"];
+
+  for (const node of nodes) {
+    if (node.kind !== "change") continue;
+    const changeNode = node as ChangePlanNode;
+
+    const attachmentCitations = changeNode.citations.filter(
+      (c) => ATTACHMENT_PREFIXES.some((p) => c.startsWith(p))
+    );
+
+    if (attachmentCitations.length === 0) continue;
+
+    // Each attachment citation must have a corresponding artifactRef
+    const artifactRefSet = new Set(changeNode.artifactRefs);
+    for (const citation of attachmentCitations) {
+      if (!artifactRefSet.has(citation)) {
+        rejectionCodes.push("PLAN_MISSING_ARTIFACT_REF");
+        return; // One violation is enough
+      }
     }
   }
 }

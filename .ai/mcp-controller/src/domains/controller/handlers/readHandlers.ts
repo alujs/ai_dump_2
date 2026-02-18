@@ -21,6 +21,24 @@ function normalizeSafeDir(root: string, relativeTarget: string): string {
   return resolved;
 }
 
+/**
+ * Check if a file path is within the session's contextPack.
+ * When contextPack is set (post-initialize_work), all reads are pack-scoped.
+ * §3 lines 141-153 — pack-scoping rule.
+ */
+function isInPack(filePath: string, session: SessionState): boolean {
+  if (!session.contextPack) return true; // No pack yet → allow (backward compat)
+  const normalized = filePath.replace(/\\/g, "/");
+  // Scratch-area files (.ai/tmp/work/) are always accessible — they're the agent's own workspace
+  if (normalized.includes(".ai/tmp/work/")) return true;
+  return session.contextPack.files.some((f) => {
+    const normalizedPackFile = f.replace(/\\/g, "/");
+    return normalized === normalizedPackFile
+      || normalized.endsWith(normalizedPackFile)
+      || normalizedPackFile.endsWith(normalized);
+  });
+}
+
 export async function handleReadRange(
   args: Record<string, unknown> | undefined,
   session: SessionState
@@ -36,6 +54,13 @@ export async function handleReadRange(
     denyReasons.push("PLAN_MISSING_REQUIRED_FIELDS");
     result.error = "args.targetFile is required but was missing or empty. Supply a relative file path within the worktree (e.g., 'src/main.ts'). Optionally include args.startLine and args.endLine (1-based) to narrow the read range.";
     result.missingFields = ["targetFile"];
+    return { result, denyReasons };
+  }
+
+  /* ── Pack-scope check ──────────────────────────────────── */
+  if (!isInPack(targetFile, session)) {
+    denyReasons.push("PACK_SCOPE_VIOLATION");
+    result.error = `File '${targetFile}' is not in the contextPack. Use 'escalate' to request additional files be added to the pack.`;
     return { result, denyReasons };
   }
 
@@ -71,7 +96,8 @@ export async function handleReadRange(
 
 export async function handleReadSymbol(
   args: Record<string, unknown> | undefined,
-  indexing: IndexingService | null
+  indexing: IndexingService | null,
+  session?: SessionState,
 ): Promise<VerbResult> {
   const denyReasons: string[] = [];
   const result: Record<string, unknown> = {};
@@ -90,13 +116,23 @@ export async function handleReadSymbol(
   }
 
   const limit = Math.max(1, Number(args?.limit ?? 12));
-  result.readSymbol = { symbol, matches: indexing.searchSymbol(symbol, limit) };
+  let matches = indexing.searchSymbol(symbol, limit);
+
+  // Pack-scope filter: only return symbols from contextPack files
+  if (session?.contextPack) {
+    matches = matches.filter((m: { filePath?: string }) =>
+      m.filePath ? isInPack(m.filePath, session) : true
+    );
+  }
+
+  result.readSymbol = { symbol, matches };
   return { result, denyReasons };
 }
 
 export async function handleGrepLexeme(
   args: Record<string, unknown> | undefined,
-  indexing: IndexingService | null
+  indexing: IndexingService | null,
+  session?: SessionState,
 ): Promise<VerbResult> {
   const denyReasons: string[] = [];
   const result: Record<string, unknown> = {};
@@ -115,7 +151,16 @@ export async function handleGrepLexeme(
   }
 
   const limit = Math.max(1, Number(args?.limit ?? 20));
-  result.grepLexeme = { query, hits: indexing.searchLexical(query, limit) };
+  let hits = indexing.searchLexical(query, limit);
+
+  // Pack-scope filter: only return hits from contextPack files
+  if (session?.contextPack) {
+    hits = hits.filter((h: { filePath?: string }) =>
+      h.filePath ? isInPack(h.filePath, session) : true
+    );
+  }
+
+  result.grepLexeme = { query, hits };
   return { result, denyReasons };
 }
 
@@ -175,6 +220,7 @@ export async function handleReadNeighbors(
   args: Record<string, unknown> | undefined,
   indexing: IndexingService | null,
   memoryService?: MemoryService,
+  session?: SessionState,
 ): Promise<VerbResult> {
   const denyReasons: string[] = [];
   const result: Record<string, unknown> = {};
@@ -197,9 +243,19 @@ export async function handleReadNeighbors(
     return { result, denyReasons };
   }
 
-  const symbolMatches = symbol ? indexing.searchSymbol(symbol, limit) : [];
+  let symbolMatches = symbol ? indexing.searchSymbol(symbol, limit) : [];
   const lexicalQuery = query || symbol || path.basename(targetFile);
-  const lexicalMatches = indexing.searchLexical(lexicalQuery, limit);
+  let lexicalMatches = indexing.searchLexical(lexicalQuery, limit);
+
+  // Pack-scope filter: only return neighbors within contextPack files
+  if (session?.contextPack) {
+    symbolMatches = symbolMatches.filter((m: { filePath?: string }) =>
+      m.filePath ? isInPack(m.filePath, session) : true
+    );
+    lexicalMatches = lexicalMatches.filter((h: { filePath?: string }) =>
+      h.filePath ? isInPack(h.filePath, session) : true
+    );
+  }
 
   result.readNeighbors = { anchor: symbol || targetFile || query, symbolMatches, lexicalMatches };
 

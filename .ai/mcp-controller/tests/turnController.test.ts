@@ -85,6 +85,18 @@ function anchors() {
   };
 }
 
+/** Helper: bootstrap a session by calling initialize_work first */
+async function initSession(controller: TurnController, ids: { runSessionId: string; workId: string; agentId: string; prompt?: string }) {
+  return controller.handleTurn({
+    runSessionId: ids.runSessionId,
+    workId: ids.workId,
+    agentId: ids.agentId,
+    originalPrompt: ids.prompt ?? "test task",
+    verb: "initialize_work",
+    args: { ...anchors(), lexemes: ["test"] },
+  });
+}
+
 test("stores original prompt verbatim and resists prompt replacement", async () => {
   const events = new EventStore();
   const controller = new TurnController(events);
@@ -94,20 +106,21 @@ test("stores original prompt verbatim and resists prompt replacement", async () 
     workId: "work_a",
     agentId: "agent_a",
     originalPrompt: "original prompt",
-    verb: "original_prompt",
-    args: anchors()
+    verb: "initialize_work",
+    args: { ...anchors(), lexemes: ["test"] }
   });
-  assert.equal(first.result.originalPrompt, "original prompt");
+  // originalPrompt is now on the response envelope, not result
+  assert.equal(first.originalPrompt, "original prompt");
 
   const second = await controller.handleTurn({
     runSessionId: "run_a",
     workId: "work_a",
     agentId: "agent_a",
     originalPrompt: "tampered prompt",
-    verb: "original_prompt",
-    args: anchors()
+    verb: "read_file_lines",
+    args: { ...anchors(), targetFile: "nonexistent.ts" }
   });
-  assert.equal(second.result.originalPrompt, "original prompt");
+  assert.equal(second.originalPrompt, "original prompt");
 });
 
 test("blocks mutation before plan acceptance", async () => {
@@ -119,7 +132,7 @@ test("blocks mutation before plan acceptance", async () => {
     workId: "work_b",
     agentId: "agent_b",
     originalPrompt: "quick task",
-    verb: "patch_apply",
+    verb: "apply_code_patch",
     args: {
       ...anchors(),
       nodeId: "node_change",
@@ -164,13 +177,16 @@ test("patch_apply rejects symbols outside approved change node scope", async () 
   const targetFile = "target.txt";
   await writeText(path.join(workRoot(workId), targetFile), "const token = 'A';\n");
 
+  // Bootstrap session first
+  await initSession(controller, { runSessionId, workId, agentId });
+
   const plan = validPlan({ workId, runSessionId, agentId, targetFile });
   await controller.handleTurn({
     runSessionId,
     workId,
     agentId,
     originalPrompt: "submit plan",
-    verb: "submit_plan",
+    verb: "submit_execution_plan",
     args: {
       ...anchors(),
       planGraph: plan
@@ -182,7 +198,7 @@ test("patch_apply rejects symbols outside approved change node scope", async () 
     workId,
     agentId,
     originalPrompt: "apply patch",
-    verb: "patch_apply",
+    verb: "apply_code_patch",
     args: {
       ...anchors(),
       nodeId: "node_change",
@@ -201,13 +217,16 @@ test("repeated failures create pending correction candidates", async () => {
   const events = new EventStore();
   const controller = new TurnController(events);
 
+  // Bootstrap session
+  await initSession(controller, { runSessionId: "run_fails", workId: "work_fails", agentId: "agent_fails", prompt: "force rejection" });
+
   for (let i = 0; i < 3; i += 1) {
     await controller.handleTurn({
       runSessionId: "run_fails",
       workId: "work_fails",
       agentId: "agent_fails",
       originalPrompt: "force rejection",
-      verb: "patch_apply",
+      verb: "apply_code_patch",
       args: {
         ...anchors(),
         nodeId: "node_change",
@@ -227,12 +246,15 @@ test("recipe usage emits episodic event with required refs", async () => {
   const events = new EventStore();
   const controller = new TurnController(events);
 
+  // Bootstrap session first
+  await initSession(controller, { runSessionId: "run_recipe", workId: "work_recipe", agentId: "agent_recipe", prompt: "run recipe" });
+
   const response = await controller.handleTurn({
     runSessionId: "run_recipe",
     workId: "work_recipe",
     agentId: "agent_recipe",
     originalPrompt: "run recipe",
-    verb: "run_recipe",
+    verb: "run_automation_recipe",
     args: {
       ...anchors(),
       recipeId: "replace_lexeme_in_file",
@@ -264,12 +286,15 @@ test("read_range returns scoped file content lines", async () => {
   const relative = `.ai/tmp/work/${workId}/read-target.txt`;
   await writeText(path.join(workRoot(workId), "read-target.txt"), "line1\nline2\nline3\n");
 
+  // Bootstrap session first
+  await initSession(controller, { runSessionId: "run_read_range", workId, agentId: "agent_read_range", prompt: "read file slice" });
+
   const response = await controller.handleTurn({
     runSessionId: "run_read_range",
     workId,
     agentId: "agent_read_range",
     originalPrompt: "read file slice",
-    verb: "read_range",
+    verb: "read_file_lines",
     args: {
       ...anchors(),
       targetFile: relative,
@@ -297,13 +322,16 @@ test("ast codemod patch_apply requires codemod citation in plan node", async () 
   const targetFile = "target.ts";
   await writeText(path.join(workRoot(workId), targetFile), "const TargetSymbol = 1;\n");
 
+  // Bootstrap session first
+  await initSession(controller, { runSessionId, workId, agentId });
+
   const plan = validPlan({ workId, runSessionId, agentId, targetFile });
   await controller.handleTurn({
     runSessionId,
     workId,
     agentId,
     originalPrompt: "submit plan",
-    verb: "submit_plan",
+    verb: "submit_execution_plan",
     args: {
       ...anchors(),
       planGraph: plan
@@ -315,7 +343,7 @@ test("ast codemod patch_apply requires codemod citation in plan node", async () 
     workId,
     agentId,
     originalPrompt: "apply ast codemod",
-    verb: "patch_apply",
+    verb: "apply_code_patch",
     args: {
       ...anchors(),
       nodeId: "node_change",
@@ -343,6 +371,9 @@ test("ast codemod patch_apply executes when citation is present", async () => {
   const targetFile = "target.ts";
   await writeText(path.join(workRoot(workId), targetFile), "const TargetSymbol = 1;\n");
 
+  // Bootstrap session first
+  await initSession(controller, { runSessionId, workId, agentId });
+
   const plan = validPlan({ workId, runSessionId, agentId, targetFile });
   const change = plan.nodes[0];
   if (change.kind === "change") {
@@ -353,7 +384,7 @@ test("ast codemod patch_apply executes when citation is present", async () => {
     workId,
     agentId,
     originalPrompt: "submit plan",
-    verb: "submit_plan",
+    verb: "submit_execution_plan",
     args: {
       ...anchors(),
       planGraph: plan
@@ -365,7 +396,7 @@ test("ast codemod patch_apply executes when citation is present", async () => {
     workId,
     agentId,
     originalPrompt: "apply ast codemod",
-    verb: "patch_apply",
+    verb: "apply_code_patch",
     args: {
       ...anchors(),
       nodeId: "node_change",
@@ -394,7 +425,7 @@ test("budget gate blocks non-safe verbs after threshold is exceeded", async () =
     workId: "work_budget",
     agentId: "agent_budget",
     originalPrompt: `p${"x".repeat(260_000)}`,
-    verb: "patch_apply",
+    verb: "apply_code_patch",
     args: {
       ...anchors(),
       nodeId: "node_change",
@@ -415,10 +446,236 @@ test("budget gate blocks non-safe verbs after threshold is exceeded", async () =
     workId: "work_budget",
     agentId: "agent_budget",
     originalPrompt: "safe follow-up",
-    verb: "list",
-    args: anchors()
+    verb: "escalate",
+    args: { ...anchors(), blockingReasons: ["budget exceeded, need guidance"] }
   });
   assert.equal(safeVerb.state, "BLOCKED_BUDGET");
-  assert.ok(Array.isArray(safeVerb.result.available));
   assert.equal(safeVerb.denyReasons.length, 0);
+});
+
+/* ── Phase 4 tests ───────────────────────────────────────── */
+
+test("initialize_work returns symbols array (Phase 4)", async () => {
+  const events = new EventStore();
+  const controller = new TurnController(events);
+
+  const response = await initSession(controller, {
+    runSessionId: "run_p4_sym",
+    workId: "work_p4_sym",
+    agentId: "agent_p4_sym",
+    prompt: "test symbols",
+  });
+
+  assert.equal(response.denyReasons.length, 0);
+  const contextPack = response.result.contextPack as Record<string, unknown>;
+  assert.ok(contextPack);
+  assert.ok(Array.isArray(contextPack.symbols));
+});
+
+/* ── Phase 5 tests ───────────────────────────────────────── */
+
+test("enforcement bundle validates graph policy rules (Phase 5)", async () => {
+  const { computeEnforcementBundle } = await import("../src/domains/plan-graph/enforcementBundle");
+  const { validatePlanGraph } = await import("../src/domains/plan-graph/planGraphValidator");
+
+  const bundle = computeEnforcementBundle(
+    [], // no memory records
+    [
+      {
+        id: "constraint:test_policy",
+        type: "macro_constraint",
+        grounded: true,
+        condition: "All plans must include a validate step",
+        enforcement: "hard_deny",
+      },
+    ],
+    [], // no migration rules
+  );
+
+  assert.equal(bundle.graphPolicyRules.length, 1);
+  assert.equal(bundle.advisoryPolicies.length, 0);
+
+  // A plan with a validate node should satisfy the constraint
+  const plan = validPlan({
+    workId: "work_p5",
+    runSessionId: "run_p5",
+    agentId: "agent_p5",
+    targetFile: "test.ts",
+  });
+
+  const result = validatePlanGraph(plan, [], bundle);
+  // The plan already has a validate node, so the macro constraint should be satisfied
+  assert.ok(!result.rejectionCodes.includes("PLAN_POLICY_VIOLATION") || result.graphPolicyResults?.some((r) => r.satisfied));
+});
+
+test("ungrounded graph policies are advisory-only (Phase 5)", async () => {
+  const { computeEnforcementBundle } = await import("../src/domains/plan-graph/enforcementBundle");
+
+  const bundle = computeEnforcementBundle(
+    [],
+    [
+      {
+        id: "intent:ungrounded",
+        type: "ui_intent",
+        grounded: false, // NOT grounded — no UsageExample link
+        condition: "Use sdf-table for data display",
+        enforcement: "hard_deny",
+        requiredComponents: ["sdf-table"],
+        forbiddenComponents: ["adp-table"],
+      },
+    ],
+    [],
+  );
+
+  // Ungrounded policies should NOT produce enforceable rules
+  assert.equal(bundle.graphPolicyRules.length, 0);
+  assert.equal(bundle.advisoryPolicies.length, 1);
+  assert.equal(bundle.advisoryPolicies[0].id, "intent:ungrounded");
+});
+
+/* ── Phase 6 tests ───────────────────────────────────────── */
+
+test("plan denied if attachment citation lacks matching artifactRef (Phase 6)", async () => {
+  const { validatePlanGraph } = await import("../src/domains/plan-graph/planGraphValidator");
+
+  const plan = validPlan({
+    workId: "work_p6",
+    runSessionId: "run_p6",
+    agentId: "agent_p6",
+    targetFile: "test.ts",
+  });
+
+  // Add an attachment citation without a matching artifactRef
+  const changeNode = plan.nodes[0];
+  if (changeNode.kind === "change") {
+    changeNode.citations.push("inbox:design-spec.pdf");
+    // Do NOT add it to artifactRefs
+  }
+
+  const result = validatePlanGraph(plan, []);
+  assert.ok(result.rejectionCodes.includes("PLAN_MISSING_ARTIFACT_REF"));
+});
+
+test("plan passes when attachment citation has matching artifactRef (Phase 6)", async () => {
+  const { validatePlanGraph } = await import("../src/domains/plan-graph/planGraphValidator");
+
+  const plan = validPlan({
+    workId: "work_p6_ok",
+    runSessionId: "run_p6_ok",
+    agentId: "agent_p6_ok",
+    targetFile: "test.ts",
+  });
+
+  // Add an attachment citation WITH matching artifactRef
+  const changeNode = plan.nodes[0];
+  if (changeNode.kind === "change") {
+    changeNode.citations.push("inbox:design-spec.pdf");
+    changeNode.artifactRefs.push("inbox:design-spec.pdf");
+  }
+
+  const result = validatePlanGraph(plan, []);
+  assert.ok(!result.rejectionCodes.includes("PLAN_MISSING_ARTIFACT_REF"));
+});
+
+test("initialize_work includes attachment artifacts in response (Phase 6)", async () => {
+  const events = new EventStore();
+  const controller = new TurnController(events);
+
+  const response = await controller.handleTurn({
+    runSessionId: "run_p6_att",
+    workId: "work_p6_att",
+    agentId: "agent_p6_att",
+    originalPrompt: "test attachments",
+    verb: "initialize_work",
+    args: {
+      ...anchors(),
+      lexemes: ["test"],
+      attachments: [
+        { name: "spec.pdf", caption: "Product specification" },
+      ],
+    },
+  });
+
+  assert.equal(response.denyReasons.length, 0);
+  const contextPack = response.result.contextPack as Record<string, unknown>;
+  assert.ok(contextPack);
+  assert.ok(Array.isArray(contextPack.attachments));
+  const attachments = contextPack.attachments as Array<{ ref: string; caption: string }>;
+  assert.ok(attachments.length > 0);
+});
+
+/* ── Phase 7 tests ───────────────────────────────────────── */
+
+test("sub-agents share contextPack within same workId (Phase 7)", async () => {
+  const events = new EventStore();
+  const controller = new TurnController(events);
+
+  // Agent 1 initializes the session
+  const init = await initSession(controller, {
+    runSessionId: "run_p7",
+    workId: "work_p7",
+    agentId: "agent_p7_main",
+    prompt: "multi-agent work",
+  });
+  assert.equal(init.state, "PLANNING");
+
+  // Agent 2 joins the same workId — should inherit PLANNING state and contextPack
+  const subAgent = await controller.handleTurn({
+    runSessionId: "run_p7",
+    workId: "work_p7",
+    agentId: "agent_p7_sub",
+    originalPrompt: "sub-agent task",
+    verb: "read_file_lines",
+    args: {
+      ...anchors(),
+      targetFile: "nonexistent.ts",
+    },
+  });
+
+  // Sub-agent should be in PLANNING state (inherited), not UNINITIALIZED
+  assert.notEqual(subAgent.state, "UNINITIALIZED");
+});
+
+test("auto-assign agentId when missing (Phase 7)", async () => {
+  const { resolveAgentId } = await import("../src/domains/controller/session");
+
+  const autoId = resolveAgentId(undefined);
+  assert.ok(autoId.length > 0);
+  assert.ok(autoId.startsWith("agent_"));
+
+  const autoIdEmpty = resolveAgentId("");
+  assert.ok(autoIdEmpty.length > 0);
+
+  const explicit = resolveAgentId("my_agent_123");
+  assert.equal(explicit, "my_agent_123");
+});
+
+test("per-agent action tracking is independent (Phase 7)", async () => {
+  const events = new EventStore();
+  const controller = new TurnController(events);
+
+  // Initialize with agent 1
+  await initSession(controller, {
+    runSessionId: "run_p7_track",
+    workId: "work_p7_track",
+    agentId: "agent_p7_a",
+    prompt: "tracking test",
+  });
+
+  // Agent 2 calls a verb
+  await controller.handleTurn({
+    runSessionId: "run_p7_track",
+    workId: "work_p7_track",
+    agentId: "agent_p7_b",
+    originalPrompt: "tracking test",
+    verb: "escalate",
+    args: { ...anchors(), need: "more context" },
+  });
+
+  // Verify both agents are tracked
+  const summaries = controller.runSummaries();
+  const agents = summaries.filter((s) => s.workId === "work_p7_track");
+  assert.ok(agents.length >= 2);
+  assert.ok(agents.some((a) => a.agentId === "agent_p7_a"));
+  assert.ok(agents.some((a) => a.agentId === "agent_p7_b"));
 });

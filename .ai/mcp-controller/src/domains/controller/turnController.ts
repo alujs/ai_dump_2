@@ -1,15 +1,11 @@
 import { capabilitiesForState } from "../capability-gating/capabilityMatrix";
-import { createContextPack } from "../context-pack/contextPackService";
-import { collectRetrievalLanes } from "../context-pack/retrievalLanes";
 import { ConnectorRegistry } from "../connectors/connectorRegistry";
 import { MemoryService } from "../memory/memoryService";
 import { EventStore } from "../observability/eventStore";
 import { CollisionGuard } from "../patch-exec/collisionGuard";
-import { listPatchApplyOptions } from "../patch-exec/patchExecService";
 import { RecipeRegistry } from "../recipes/recipeRegistry";
 import { recommendedSubAgentSplits, selectStrategy, type StrategySelection } from "../strategy/strategySelector";
 import { ProofChainBuilder } from "../proof-chains/proofChainBuilder";
-import { listAllowedFiles } from "../worktree-scope/worktreeScopeService";
 import type { RunState, TurnRequest, TurnResponse } from "../../contracts/controller";
 import type { IndexingService } from "../indexing/indexingService";
 import { SCHEMA_VERSION } from "../../shared/constants";
@@ -18,21 +14,16 @@ import { ensureId, traceRef } from "../../shared/ids";
 import { verbDescriptionsForCapabilities } from "../../shared/verbCatalog";
 
 import type { SessionState, VerbResult } from "./types";
-import { createSession, resolveOriginalPrompt, extractLexemes, trackRejections } from "./session";
+import { createSession, resolveOriginalPrompt, extractLexemes, trackRejections, resolveAgentId } from "./session";
 import { consumeBudget, isBudgetSafeVerb } from "./budget";
-import { extractAnchors, asStringArray, asStringRecord, moduleHint } from "./turnHelpers";
-import { handleReadRange, handleReadSymbol, handleGrepLexeme, handleReadNeighbors, handleListDir } from "./handlers/readHandlers";
+import { extractAnchors, asStringArray, moduleHint } from "./turnHelpers";
+import { handleReadRange, handleReadSymbol, handleGrepLexeme, handleReadNeighbors } from "./handlers/readHandlers";
 import { handleSubmitPlan, handleWriteTmp } from "./handlers/planHandlers";
 import { handlePatchApply, handleCodeRun, handleSideEffect } from "./handlers/mutationHandlers";
-import { handleFetchJira, handleFetchSwagger } from "./handlers/connectorHandlers";
 import { handleRunRecipe } from "./handlers/recipeHandler";
 import { handleEscalate } from "./handlers/escalateHandler";
 import { handleSignalTaskComplete } from "./handlers/retrospectiveHandler";
-
-/* ── Verbs that require full context pack + retrieval ── */
-const CONTEXT_PACK_VERBS = new Set([
-  "submit_execution_plan",
-]);
+import { handleInitializeWork } from "./handlers/initializeWorkHandler";
 
 export class TurnController {
   private readonly sessions = new Map<string, SessionState>();
@@ -61,16 +52,16 @@ export class TurnController {
   async handleTurn(request: TurnRequest): Promise<TurnResponse> {
     const runSessionId = ensureId(request.runSessionId, "run");
     const workId = ensureId(request.workId, "work");
-    const agentId = ensureId(request.agentId, "agent");
+    const agentId = resolveAgentId(request.agentId) || ensureId(request.agentId, "agent");
     const sessionKey = `${runSessionId}:${workId}:${agentId}`;
     const collisionScopeKey = `${runSessionId}:${workId}`;
-    const session = this.ensureSession(sessionKey, runSessionId, workId, agentId);
+    const session = this.ensureSession(sessionKey, runSessionId, workId, agentId, collisionScopeKey);
     const worktreeRoot = (): string => session.planGraph?.worktreeRoot ?? resolveTargetRepoRoot();
 
     const originalPrompt = resolveOriginalPrompt(session, request.originalPrompt, this.eventStore);
     const lexemes = extractLexemes(request);
 
-    // Enrich strategy selection with Jira ticket fields and session artifacts [REF:CONTEXTSIGNATURE]
+    // Strategy selection — used for response envelope (initialize_work does its own)
     const jiraSlice = (session as SessionState & { jiraSlice?: { issueType?: string; labels?: string[]; components?: string[]; summary?: string; description?: string } }).jiraSlice;
     const strategy = selectStrategy({
       originalPrompt,
@@ -89,124 +80,6 @@ export class TurnController {
 
     await this.logInput(runSessionId, workId, agentId, request);
 
-    /* ── Context pack: only on planning-relevant verbs ─── */
-    let contextPackRef: string | undefined;
-    let contextPackHash: string | undefined;
-
-    if (CONTEXT_PACK_VERBS.has(request.verb)) {
-      const retrievalLanes = await collectRetrievalLanes({
-        queryText: `${originalPrompt}\n${lexemes.join(" ")}`,
-        symbolHints: asStringArray(request.args?.symbolHints) ?? [],
-        activePolicies: asStringArray(request.args?.activePolicies) ?? [],
-        knownArtifacts: session.artifacts,
-        indexing: this.indexing,
-        events: this.eventStore,
-      });
-
-      await this.logRetrieval(runSessionId, workId, agentId, retrievalLanes as unknown as Record<string, unknown>);
-
-      // Determine proof chain requirements from ContextSignature [REF:PROOF-CHAINS]
-      const needsAgGrid = strategy.contextSignature?.mentions_aggrid
-        ?? lexemes.some((l) => l.includes("ag-grid"));
-      const needsFederation = strategy.contextSignature?.behind_federation_boundary
-        ?? lexemes.some((l) => l.includes("federation"));
-
-      // Auto-build proof chains when proof chain builder is available [REF:CHAIN-AGGRID] [REF:CHAIN-FEDERATION]
-      let agGridProofChain: Awaited<ReturnType<ProofChainBuilder["buildAgGridOriginChain"]>> | undefined;
-      let federationProofChain: Awaited<ReturnType<ProofChainBuilder["buildFederationChain"]>> | undefined;
-
-      if (this.proofChainBuilder) {
-        const chainSeed = extractChainSeed(request.args, lexemes, originalPrompt);
-        if (needsAgGrid && chainSeed) {
-          try {
-            agGridProofChain = await this.proofChainBuilder.buildAgGridOriginChain(chainSeed);
-            await this.eventStore.append({
-              ts: new Date().toISOString(), type: "proof_chain_built",
-              runSessionId, workId, agentId,
-              payload: { chainType: "ag_grid_origin", complete: agGridProofChain.complete, links: agGridProofChain.chain.length, missingLinks: agGridProofChain.missingLinks },
-            });
-          } catch { /* chain build failures are non-fatal; reported via insufficiency */ }
-        }
-        if (needsFederation && chainSeed) {
-          try {
-            federationProofChain = await this.proofChainBuilder.buildFederationChain(chainSeed);
-            await this.eventStore.append({
-              ts: new Date().toISOString(), type: "proof_chain_built",
-              runSessionId, workId, agentId,
-              payload: { chainType: "federation", complete: federationProofChain.complete, links: federationProofChain.chain.length, missingLinks: federationProofChain.missingLinks },
-            });
-          } catch { /* chain build failures are non-fatal */ }
-        }
-      }
-
-      // Extract raw Jira ticket from session artifacts [REF:CP-SECTIONS]
-      const rawJiraTicket = extractRawJiraTicket(session.artifacts);
-
-      // Query active memory records for domains in scope [REF:MEMORY-INJECTION]
-      const scopeFiles = listAllowedFiles(workId, session.scopeAllowlist, worktreeRoot());
-      const activeMemories = await this.memoryService.findActiveForAnchors(
-        scopeFiles.slice(0, 50).map((f) => {
-          // Derive anchor IDs from file paths (folder-based)
-          const parts = f.replace(/\\/g, "/").split("/");
-          return parts.length > 1 ? `anchor:${parts.slice(0, 2).join("/")}` : `anchor:${parts[0]}`;
-        })
-      );
-
-      // Ingest any human override files [REF:HUMAN-INTERVENTION]
-      await this.memoryService.ingestOverrideFiles();
-
-      const packOutput = await createContextPack({
-        runSessionId, workId, originalPrompt,
-        strategyId: strategy.strategyId,
-        strategyReasons: strategy.reasons,
-        taskConstraints: asStringArray(request.args?.taskConstraints) ?? [],
-        conflicts: asStringArray(request.args?.conflicts) ?? [],
-        activePolicies: asStringArray(request.args?.activePolicies) ?? [],
-        policyVersionSet: asStringRecord(request.args?.policyVersionSet),
-        allowedFiles: listAllowedFiles(workId, session.scopeAllowlist, worktreeRoot()),
-        allowedCapabilities: capabilitiesForState(budgetStatus.blocked ? "BLOCKED_BUDGET" : session.state),
-        validationPlan: asStringArray(request.args?.validationPlan) ?? [],
-        missingness: asStringArray(request.args?.missingness) ?? [],
-        retrievalLanes,
-        executionOptions: { patchApply: listPatchApplyOptions() },
-        schemaLinks: [
-          ".ai/config/schema.json",
-          "src/contracts/controller.ts",
-          "src/contracts/planGraph.ts",
-          ".ai/mcp-controller/specs/ast_codemod_policy.md",
-        ],
-        anchors: extractAnchors(request.args),
-        requiresAgGridProof: needsAgGrid,
-        requiresFederationProof: needsFederation,
-        rawJiraTicket,
-        agGridProofChain,
-        federationProofChain,
-        activeMemories,
-      });
-
-      contextPackRef = packOutput.contextPackRef;
-      contextPackHash = packOutput.contextPackHash;
-
-      if (packOutput.insufficiency) {
-        const response = this.makeResponse({
-          runSessionId, workId, agentId,
-          state: budgetStatus.blocked ? "BLOCKED_BUDGET" : "PLAN_REQUIRED",
-          strategy, result: {
-            message: "Context pack is insufficient for execution-safe planning.",
-            contextPackRef, contextPackHash,
-          },
-          denyReasons: ["PACK_INSUFFICIENT", "PACK_REQUIRED_ANCHOR_UNRESOLVED"],
-          outcome: "pack_insufficient",
-          packInsufficiency: packOutput.insufficiency,
-          budgetStatus, scopeWorktreeRoot: worktreeRoot(),
-        });
-        await this.logTurn("pack_insufficient", request.verb, response, request.args);
-        session.state = response.state;
-        this.sessions.set(sessionKey, session);
-        return response;
-      }
-    }
-
     session.actionCounts[request.verb] = (session.actionCounts[request.verb] ?? 0) + 1;
 
     /* ── Budget gate ──────────────────────────────────────── */
@@ -214,9 +87,10 @@ export class TurnController {
       const response = this.makeResponse({
         runSessionId, workId, agentId,
         state: "BLOCKED_BUDGET", strategy,
-        result: { message: "Token budget threshold exceeded. Use list_available_verbs/get_original_prompt/request_evidence_guidance.", contextPackRef, contextPackHash },
+        result: { message: "Token budget threshold exceeded. Use escalate or signal_task_complete." },
         denyReasons: ["BUDGET_THRESHOLD_EXCEEDED"],
         budgetStatus, scopeWorktreeRoot: worktreeRoot(),
+        session,
       });
       trackRejections(session, response.denyReasons);
       session.state = "BLOCKED_BUDGET";
@@ -230,8 +104,6 @@ export class TurnController {
     const verbResult = await this.dispatchVerb(request.verb, request.args, session, state, collisionScopeKey, workId, worktreeRoot(), this.memoryService);
 
     const mergedResult: Record<string, unknown> = { ...verbResult.result };
-    if (contextPackRef) mergedResult.contextPackRef = contextPackRef;
-    if (contextPackHash) mergedResult.contextPackHash = contextPackHash;
 
     const finalState = verbResult.stateOverride ?? state;
     trackRejections(session, verbResult.denyReasons);
@@ -242,6 +114,7 @@ export class TurnController {
       result: mergedResult,
       denyReasons: verbResult.denyReasons,
       budgetStatus, scopeWorktreeRoot: worktreeRoot(),
+      session,
     });
 
     session.state = finalState;
@@ -275,6 +148,14 @@ export class TurnController {
     memoryService?: MemoryService,
   ): Promise<VerbResult> {
     switch (verb) {
+      case "initialize_work":
+        return handleInitializeWork(args, session, {
+          eventStore: this.eventStore,
+          indexing: this.indexing,
+          memoryService: this.memoryService,
+          connectors: this.connectors,
+          proofChainBuilder: this.proofChainBuilder,
+        });
       case "submit_execution_plan":
         return handleSubmitPlan(args, session, state, memoryService);
       case "write_scratch_file":
@@ -282,37 +163,23 @@ export class TurnController {
       case "read_file_lines":
         return handleReadRange(args, session);
       case "lookup_symbol_definition":
-        return handleReadSymbol(args, this.indexing);
+        return handleReadSymbol(args, this.indexing, session);
       case "search_codebase_text":
-        return handleGrepLexeme(args, this.indexing);
+        return handleGrepLexeme(args, this.indexing, session);
       case "trace_symbol_graph":
-        return handleReadNeighbors(args, this.indexing, this.memoryService);
-      case "list_scoped_files":
-        return { result: { allowedFiles: listAllowedFiles(workId, session.scopeAllowlist, worktreeRoot) }, denyReasons: [] };
-      case "list_directory_contents":
-        return handleListDir(args, session);
+        return handleReadNeighbors(args, this.indexing, this.memoryService, session);
       case "apply_code_patch":
         return handlePatchApply(collisionScopeKey, args, session, this.collisionGuard, state);
       case "run_sandboxed_code":
         return handleCodeRun(collisionScopeKey, args, session, this.collisionGuard, state);
       case "execute_gated_side_effect":
         return handleSideEffect(collisionScopeKey, args, session, this.collisionGuard, state);
-      case "fetch_jira_ticket":
-        return handleFetchJira(args, session, this.connectors);
-      case "fetch_api_spec":
-        return handleFetchSwagger(args, session, this.connectors);
-      case "request_evidence_guidance":
-        return handleEscalate(args, session, this.eventStore);
-      case "get_original_prompt":
-        return { result: { originalPrompt: session.originalPrompt }, denyReasons: [] };
+      case "escalate":
+        return handleEscalate(args, session, { eventStore: this.eventStore, indexing: this.indexing });
       case "run_automation_recipe":
         return handleRunRecipe(args, session, this.eventStore, this.recipes);
       case "signal_task_complete":
         return handleSignalTaskComplete(args, session, this.eventStore, this.memoryService);
-      case "list_available_verbs": {
-        const available = capabilitiesForState(state);
-        return { result: { available, verbDescriptions: verbDescriptionsForCapabilities(available) }, denyReasons: [] };
-      }
       default: {
         const allowed = capabilitiesForState(state);
         if (!allowed.includes(verb)) {
@@ -338,10 +205,30 @@ export class TurnController {
 
   /* ── Private: session helpers ──────────────────────────── */
 
-  private ensureSession(key: string, runSessionId: string, workId: string, agentId: string): SessionState {
+  private ensureSession(key: string, runSessionId: string, workId: string, agentId: string, workScopeKey?: string): SessionState {
     const existing = this.sessions.get(key);
     if (existing) return existing;
-    return createSession(runSessionId, workId, agentId);
+
+    const session = createSession(runSessionId, workId, agentId);
+
+    // Phase 7: Share contextPack and planGraph from sibling agents in the same workId
+    if (workScopeKey) {
+      for (const [siblingKey, siblingSession] of this.sessions) {
+        if (siblingKey.startsWith(workScopeKey + ":") && siblingKey !== key) {
+          // Copy shared state from sibling (contextPack, planGraph, planGraphProgress, state, originalPrompt)
+          if (siblingSession.contextPack) session.contextPack = siblingSession.contextPack;
+          if (siblingSession.planGraph) session.planGraph = siblingSession.planGraph;
+          if (siblingSession.planGraphProgress) session.planGraphProgress = { ...siblingSession.planGraphProgress };
+          if (siblingSession.originalPrompt) session.originalPrompt = siblingSession.originalPrompt;
+          if (siblingSession.scopeAllowlist) session.scopeAllowlist = siblingSession.scopeAllowlist;
+          // Inherit state progression — new agent shouldn't start at UNINITIALIZED if work is already initialized
+          if (siblingSession.state !== "UNINITIALIZED") session.state = siblingSession.state;
+          break; // Only need one sibling
+        }
+      }
+    }
+
+    return session;
   }
 
   /* ── Private: response construction ────────────────────── */
@@ -358,8 +245,33 @@ export class TurnController {
     budgetStatus: TurnResponse["budgetStatus"];
     outcome?: "pack_insufficient";
     packInsufficiency?: TurnResponse["packInsufficiency"];
+    session?: SessionState;
   }): TurnResponse {
     const caps = capabilitiesForState(input.state);
+
+    // Compute progress from session's planGraphProgress
+    const pgProgress = input.session?.planGraphProgress;
+    const totalNodes = pgProgress?.totalNodes ?? 0;
+    const completedNodes = pgProgress?.completedNodes ?? 0;
+
+    // Compute pending validations from plan graph
+    const pendingValidations: Array<{ nodeId: string; status: string }> = [];
+    if (input.session?.planGraph?.nodes && pgProgress) {
+      const completedSet = new Set(pgProgress.completedNodeIds);
+      for (const node of input.session.planGraph.nodes) {
+        if (node.kind === "validate" && !completedSet.has(node.nodeId)) {
+          pendingValidations.push({ nodeId: node.nodeId, status: "not_started" });
+        }
+      }
+    }
+
+    const progress: TurnResponse["progress"] = {
+      totalNodes,
+      completedNodes,
+      remainingNodes: Math.max(0, totalNodes - completedNodes),
+      pendingValidations,
+    };
+
     const response: TurnResponse = {
       runSessionId: input.runSessionId,
       workId: input.workId,
@@ -371,11 +283,13 @@ export class TurnController {
       scope: { worktreeRoot: input.scopeWorktreeRoot, scratchRoot: scratchRoot(input.workId) },
       result: input.result,
       denyReasons: input.denyReasons,
+      originalPrompt: input.session?.originalPrompt ?? "",
       knowledgeStrategy: {
         strategyId: input.strategy.strategyId,
         contextSignature: input.strategy.contextSignature as unknown as Record<string, unknown>,
         reasons: input.strategy.reasons,
       },
+      progress,
       budgetStatus: input.budgetStatus,
       traceRef: traceRef(),
       schemaVersion: SCHEMA_VERSION,
@@ -491,8 +405,6 @@ export class TurnController {
 
 /* ── Module-level helpers ────────────────────────────────── */
 
-import type { ConnectorArtifact } from "../connectors/connectorRegistry";
-
 /**
  * Given a set of deny reasons, tell the agent what verb to call next.
  * This is the "you should escalate" signal the spec requires.
@@ -503,88 +415,41 @@ function deriveSuggestedAction(
 ): TurnResponse["suggestedAction"] {
   if (denyReasons.includes("PACK_INSUFFICIENT") || denyReasons.includes("PACK_REQUIRED_ANCHOR_UNRESOLVED")) {
     return {
-      verb: "request_evidence_guidance",
-      reason: "Context pack is insufficient — the controller cannot build a safe execution context. Call request_evidence_guidance with the blocking reasons to get targeted guidance on what evidence to gather.",
-      args: { blockingReasons: denyReasons },
+      verb: "escalate",
+      reason: "Context pack is insufficient. Call escalate with your need to request additional context.",
+      args: { need: denyReasons.join("; "), type: "pack_rebuild" },
+    };
+  }
+  if (denyReasons.includes("PACK_SCOPE_VIOLATION")) {
+    return {
+      verb: "escalate",
+      reason: "The file you requested is not in the contextPack. Call escalate to request it be added.",
+      args: { need: "File not in pack", type: "scope_expand" },
     };
   }
   if (denyReasons.includes("PLAN_EVIDENCE_INSUFFICIENT")) {
     return {
-      verb: "request_evidence_guidance",
-      reason: "Your plan was denied because it lacks sufficient evidence (minimum 2 distinct sources required). Call request_evidence_guidance to get guidance on which verbs to use for evidence gathering.",
-      args: { blockingReasons: ["PLAN_EVIDENCE_INSUFFICIENT"] },
+      verb: "escalate",
+      reason: "Your plan was denied because it lacks sufficient evidence (minimum 2 distinct sources required). Call escalate to request more context.",
+      args: { need: "More evidence sources needed", type: "artifact_fetch" },
     };
   }
   if (denyReasons.includes("BUDGET_THRESHOLD_EXCEEDED")) {
     return {
-      verb: "request_evidence_guidance",
-      reason: "Token budget exceeded. Call request_evidence_guidance to report your progress and get next steps.",
-      args: { blockingReasons: ["BUDGET_THRESHOLD_EXCEEDED"] },
+      verb: "signal_task_complete",
+      reason: "Token budget exceeded. Call signal_task_complete to wrap up.",
     };
   }
   if (denyReasons.includes("PLAN_SCOPE_VIOLATION")) {
     return {
-      verb: "list_available_verbs",
-      reason: "The verb you tried is not allowed in the current run-state. Call list_available_verbs to see what verbs are available.",
+      verb: "escalate",
+      reason: "The verb you tried is not allowed in the current run-state. Check capabilities in the response envelope.",
     };
   }
-  // Generic fallback for any other deny
+  // Generic fallback
   return {
-    verb: "request_evidence_guidance",
-    reason: `Request denied: [${denyReasons.join(", ")}]. Call request_evidence_guidance to get guidance.`,
-    args: { blockingReasons: denyReasons },
-  };
-}
-
-/**
- * Extract a seed for proof chain traversal from request args, lexemes, or prompt.
- * The seed is the most specific identifier we can find (symbol, file, route, etc.)
- */
-function extractChainSeed(
-  args: Record<string, unknown> | undefined,
-  lexemes: string[],
-  prompt: string,
-): string | null {
-  // Explicit seed from args
-  if (args?.chainSeed && typeof args.chainSeed === "string") return args.chainSeed;
-  if (args?.targetFile && typeof args.targetFile === "string") return args.targetFile;
-  if (args?.symbol && typeof args.symbol === "string") return args.symbol;
-
-  // Look for specific patterns in lexemes (route-like, component-like, grid-like)
-  for (const lex of lexemes) {
-    if (lex.includes("/") || lex.includes("component") || lex.includes("grid") || lex.includes("table")) {
-      return lex;
-    }
-  }
-
-  // Fall back to first non-trivial lexeme
-  const substantive = lexemes.find((l) => l.length > 3 && !["the", "and", "for", "this", "that", "with"].includes(l));
-  if (substantive) return substantive;
-
-  // Last resort: use first 50 chars of prompt as search seed
-  const trimmed = prompt.trim();
-  return trimmed.length > 3 ? trimmed.slice(0, 50) : null;
-}
-
-/**
- * Extract the raw Jira ticket payload from session artifacts.
- * This is stored verbatim in the context pack per [REF:CP-SECTIONS] TaskSpec.
- */
-function extractRawJiraTicket(
-  artifacts: ConnectorArtifact[],
-): Record<string, unknown> | undefined {
-  const jira = artifacts.find((a) => a.source === "jira");
-  if (!jira) return undefined;
-
-  const payload = (jira.metadata as Record<string, unknown>)?.payload;
-  if (payload && typeof payload === "object") {
-    return payload as Record<string, unknown>;
-  }
-
-  // Return the whole metadata as fallback
-  return {
-    issueKey: jira.ref,
-    summary: jira.summary,
-    ...jira.metadata,
+    verb: "escalate",
+    reason: `Request denied: [${denyReasons.join(", ")}]. Call escalate to request guidance.`,
+    args: { need: denyReasons.join("; ") },
   };
 }
