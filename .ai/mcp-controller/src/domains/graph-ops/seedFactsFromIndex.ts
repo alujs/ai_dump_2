@@ -400,9 +400,9 @@ function buildRouteRows(
             id: guardId,
             name: detail.name,
             // Store derived metadata from resolved data (all scalars/string[])
-            definitionFile: resolved?.definitionFile ?? "",
+            definitionFile: resolved?.definitionFile ? normalizeToRelative(resolved.definitionFile, repoRoot) : "",
             kind: resolved?.kind ?? "",
-            importedFiles: resolved?.importedFiles ?? [],
+            importedFiles: (resolved?.importedFiles ?? []).map((f) => normalizeToRelative(f, repoRoot)),
             importedSymbols: resolved?.importedSymbols ?? [],
             updated_at: now,
             updated_by: "seed-facts",
@@ -602,10 +602,10 @@ function buildDirectiveRows(
         boundExpressions: [...info.expressions],   // native string[] — not JSON.stringify
         templateCount: info.templates.size,
         // Derived metadata from resolved data (all scalars/string[])
-        definitionFile: resolved?.definitionFile ?? "",
+        definitionFile: resolved?.definitionFile ? normalizeToRelative(resolved.definitionFile, repoRoot) : "",
         className: resolved?.className ?? "",
         kind: resolved?.kind ?? "",
-        importedFiles: resolved?.importedFiles ?? [],
+        importedFiles: (resolved?.importedFiles ?? []).map((f) => normalizeToRelative(f, repoRoot)),
         importedSymbols: resolved?.importedSymbols ?? [],
         updated_at: now,
         updated_by: "seed-facts",

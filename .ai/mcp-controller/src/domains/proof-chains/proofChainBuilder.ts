@@ -514,15 +514,19 @@ export class ProofChainBuilder {
         id: string; type: string; grounded: boolean;
         condition: string; enforcement: string;
         componentTag?: string;
+        requiredComponents?: string[];
+        forbiddenComponents?: string[];
       }>(
         `MATCH (p)
          WHERE p:UIIntent OR p:ComponentIntent OR p:MacroConstraint
          RETURN p.id AS id,
-                head(labels(p)) AS type,
+                coalesce(p.type, 'unknown') AS type,
                 coalesce(p.grounded, false) AS grounded,
-                coalesce(p.condition, '') AS condition,
+                coalesce(p.condition, p.description, '') AS condition,
                 coalesce(p.enforcement, 'advisory') AS enforcement,
-                p.componentTag AS componentTag
+                p.componentTag AS componentTag,
+                p.requiredComponents AS requiredComponents,
+                p.forbiddenComponents AS forbiddenComponents
          LIMIT 200`,
         {},
       );
@@ -534,6 +538,8 @@ export class ProofChainBuilder {
           condition: r.condition,
           enforcement: r.enforcement as "hard_deny" | "advisory",
           componentTag: r.componentTag,
+          requiredComponents: r.requiredComponents,
+          forbiddenComponents: r.forbiddenComponents,
         });
       }
 

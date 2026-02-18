@@ -1,1 +1,0 @@
-{"kind":"relationship","from":{"id":"seed:workspace","label":"Entity"},"to":{"id":"seed:workspace","label":"Entity"},"relType":"SELF_REFERENCE","properties":{"updated_at":"2026-02-15T00:00:00.000Z","updated_by":"seed"}}

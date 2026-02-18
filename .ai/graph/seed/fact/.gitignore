@@ -1,0 +1,3 @@
+# This directory is populated by `npm run graphops:seed-facts`.
+# Generated JSONL files are repo-specific and must not be committed.
+*.jsonl

@@ -458,11 +458,14 @@ function collectDirectiveUsages(nodes: unknown[], result: TemplateDirectiveFacts
       const tag = node.name;
 
       // Check bound attributes (inputs) like [appHasRole]="expr"
+      // Only capture names that look like directive selectors (camelCase with
+      // prefix, dash-separated, etc.) — NOT plain component @Input bindings
+      // like [article], [comment], [innerHTML], [formGroup], etc.
       if ("inputs" in node && Array.isArray((node as { inputs: unknown[] }).inputs)) {
         for (const input of (node as { inputs: unknown[] }).inputs) {
           if (input && typeof input === "object" && "name" in input) {
             const inputName = (input as { name: string }).name;
-            if (!isBuiltinDirective(inputName)) {
+            if (!isBuiltinDirective(inputName) && looksLikeDirective(inputName)) {
               const boundExpr = extractExpressionValue(input);
               result.usages.push({
                 directiveName: inputName,
@@ -510,17 +513,54 @@ function collectDirectiveUsages(nodes: unknown[], result: TemplateDirectiveFacts
 }
 
 /**
- * Heuristic for static attributes: only capture names that look like custom
- * Angular directives rather than plain HTML.  We check for:
- *   - camelCase (e.g. "appHasRole", "myTooltip")
- *   - prefixed with known app/lib prefixes containing a dash or uppercase
- * This avoids capturing every HTML attribute as a "directive usage."
+ * Heuristic for identifying custom Angular directive selectors vs plain
+ * component @Input() bindings or HTML attributes.
+ *
+ * Positive signals (likely a directive):
+ *   - Has an app/lib prefix: "appHasRole", "myTooltip", "sdfHighlight"
+ *   - Dash-separated with a namespace: "app-has-role" (not data-/aria-)
+ *
+ * Negative signals (likely a component input or HTML binding):
+ *   - Single lowercase word: "article", "comment", "label", "disabled"
+ *   - Known DOM/Angular binding names: "innerHTML", "formGroup", etc.
+ *   - Short generic names without a clear prefix
  */
+
+const KNOWN_INPUT_BINDINGS = new Set([
+  // DOM properties commonly used as [bound] inputs
+  "innerhtml", "innertext", "textcontent", "outerhtml",
+  "classname", "htmlfor",
+  // Reactive forms
+  "formgroup", "formcontrol", "formcontrolname", "formarrayname",
+  "formgroupname",
+  // Common component input names (single-word, generic)
+  "article", "comment", "comments", "data", "items", "item",
+  "config", "options", "settings", "params", "model", "entity",
+  "profile", "user", "event", "events", "tags", "tag",
+  "errors", "error", "message", "messages", "loading", "visible",
+  "label", "icon", "color", "size", "width", "height",
+  "index", "count", "total", "page", "limit", "offset",
+  "isowner", "isloading", "isvisible", "isdisabled", "isactive",
+  "isenabled", "isopen", "isclosed", "isselected", "ischecked",
+]);
+
 function looksLikeDirective(name: string): boolean {
-  // Contains uppercase letter → likely camelCase directive selector
-  if (/[A-Z]/.test(name)) return true;
-  // Has a prefix separator (app-has-role style)
+  const lower = name.toLowerCase();
+
+  // Known input/DOM bindings → definitely not a directive
+  if (KNOWN_INPUT_BINDINGS.has(lower)) return false;
+
+  // Has a dash separator → probably a namespaced directive selector
+  // (but not data-* or aria-* which are HTML standard)
   if (name.includes("-") && !name.startsWith("data-") && !name.startsWith("aria-")) return true;
+
+  // Contains uppercase AND has a recognizable prefix pattern:
+  // appXyz, sdfXyz, adpXyz, matXyz, cdkXyz, nzXyz — i.e. a lowerCase
+  // run of 2-4 chars followed by an uppercase letter
+  if (/^[a-z]{2,4}[A-Z]/.test(name)) return true;
+
+  // Bare camelCase without a clear prefix → likely a component input
+  // e.g. "isOwner", "tagList", "formGroup" — skip these
   return false;
 }
 
