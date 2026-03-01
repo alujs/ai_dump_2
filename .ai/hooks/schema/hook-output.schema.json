@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hook-output.schema.json",
+  "title": "Hook Output (stdout from dispatcher)",
+  "description": "The single JSON object the dispatcher writes to stdout. VS Code reads this to apply the hook's decision. Must be exactly one object, nothing else on stdout.",
+  "type": "object",
+  "properties": {
+    "decision": {
+      "type": "string",
+      "enum": ["allow", "ask", "deny"],
+      "default": "allow",
+      "description": "Tool decision. Only meaningful for PreToolUse events. Ignored for other events."
+    },
+    "denyReason": {
+      "type": "string",
+      "description": "Human-readable reason for deny/ask. Required when decision is deny."
+    },
+    "updatedInput": {
+      "type": "object",
+      "description": "Semantic rewrite of tool input. Merged over original tool input by VS Code.",
+      "additionalProperties": true
+    },
+    "additionalContext": {
+      "type": "array",
+      "description": "Context items injected into the agent's context window.",
+      "items": {
+        "type": "object",
+        "required": ["key", "value"],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Context item key (unique per hook invocation)."
+          },
+          "value": {
+            "type": "string",
+            "description": "Context item content (text injected into agent context)."
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Human-readable warnings. May be surfaced to the user or logged.",
+      "items": { "type": "string" }
+    },
+    "_debug": {
+      "type": "object",
+      "description": "Optional debug metadata. Not consumed by VS Code but useful for diagnostics.",
+      "properties": {
+        "hookRunId": { "type": "string" },
+        "modulesRan": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "elapsedMs": { "type": "integer" },
+        "budgetMs": { "type": "integer" },
+        "budgetExceeded": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

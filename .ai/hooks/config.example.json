@@ -1,0 +1,9 @@
+{
+  "$comment": "Neo4j connection config for hook session capability checks. Copy to config.json and fill in credentials.",
+  "neo4j": {
+    "uri": "bolt://127.0.0.1:7687",
+    "username": "neo4j",
+    "password": "CHANGE_ME",
+    "database": "piopex"
+  }
+}

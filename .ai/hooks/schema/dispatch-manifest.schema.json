@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dispatch-manifest.schema.json",
+  "title": "Dispatch Manifest",
+  "description": "Controls which feature modules run, in what order, with what constraints. Read by dispatch.mjs at startup.",
+  "type": "object",
+  "required": ["version", "modules"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version. Always 1 for now."
+    },
+    "$schema": { "type": "string" },
+    "$comment": { "type": "string" },
+    "budgets": {
+      "type": "object",
+      "description": "Per-event execution budget in milliseconds. If the total wall-clock time of all modules exceeds this, remaining modules are skipped.",
+      "properties": {
+        "SessionStart":     { "type": "integer", "minimum": 100 },
+        "UserPromptSubmit": { "type": "integer", "minimum": 100 },
+        "PreToolUse":       { "type": "integer", "minimum": 50 },
+        "PostToolUse":      { "type": "integer", "minimum": 50 },
+        "PreCompact":       { "type": "integer", "minimum": 100 },
+        "Stop":             { "type": "integer", "minimum": 100 },
+        "SubagentStart":    { "type": "integer", "minimum": 100 },
+        "SubagentStop":     { "type": "integer", "minimum": 100 }
+      },
+      "additionalProperties": false
+    },
+    "enforcePhases": {
+      "type": "boolean",
+      "default": false,
+      "description": "When true, the dispatcher will enforce phasePolicy restrictions. When false, phases are tracked but not enforced."
+    },
+    "phasePolicy": {
+      "type": "object",
+      "description": "Per-phase tool allow-lists and enforcement modes.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "allowTools": {
+            "oneOf": [
+              { "type": "array", "items": { "type": "string" } },
+              { "type": "string", "const": "*" }
+            ],
+            "description": "List of allowed tool names, or \"*\" for all."
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["allow", "warn", "deny"],
+            "description": "What to do when a tool outside the allow-list is invoked."
+          }
+        },
+        "required": ["allowTools", "mode"]
+      }
+    },
+    "rewriteOwner": {
+      "type": "object",
+      "description": "Which module is authoritative for each rewrite channel.",
+      "properties": {
+        "inputMetadata": {
+          "type": "string",
+          "description": "Module name owning the inputMetadata rewrite channel."
+        },
+        "updatedInput": {
+          "type": "string",
+          "description": "Module name owning the updatedInput rewrite channel."
+        }
+      },
+      "additionalProperties": false
+    },
+    "gc": {
+      "type": "object",
+      "description": "Garbage collection settings for old session directories.",
+      "properties": {
+        "maxAgeDays": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 7,
+          "description": "Remove session dirs older than this many days."
+        },
+        "maxSessions": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 20,
+          "description": "Keep at most this many session dirs (by recency)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "modules": {
+      "type": "object",
+      "description": "Keyed by module name. Each entry configures one feature hook.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["enabled", "priority", "path"],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether this module is loaded and executed."
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Execution order. Lower = runs first."
+          },
+          "hotPathSafe": {
+            "type": "boolean",
+            "default": false,
+            "description": "If true, module promises O(1) no-IO execution on PreToolUse."
+          },
+          "critical": {
+            "type": "boolean",
+            "default": false,
+            "description": "If true, errors in this module cause fail-open + warning. If false, errors are silently swallowed."
+          },
+          "path": {
+            "type": "string",
+            "description": "Relative path from manifest directory to the module's hook.mjs entry file."
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "state.schema.json",
+  "title": "Session State (s.json)",
+  "description": "Cached snapshot of session state. Contains ONLY idempotent pointer fields — no counters, no arrays, no read-modify-write. Last-write-wins is safe by design. The authoritative source of truth is e.jsonl, not this file.",
+  "type": "object",
+  "required": ["core"],
+  "properties": {
+    "core": {
+      "type": "object",
+      "description": "Core session identity and lifecycle. Owned by the session module.",
+      "required": ["sessionId", "workId", "lastTurnId", "phase"],
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{8}$",
+          "description": "Set once on SessionStart. Never changes."
+        },
+        "workId": {
+          "type": "string",
+          "pattern": "^w[0-9]{3}$",
+          "description": "Current work unit. Set-if-newer (by turnId)."
+        },
+        "lastTurnId": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Set to max(current, incoming). Monotonic."
+        },
+        "phase": {
+          "type": "string",
+          "enum": ["UNINITIALIZED", "PLANNING", "EXECUTING", "COMPLETE", "BLOCKED"],
+          "description": "Current lifecycle phase. Set to max ordinal (UNINITIALIZED=0 < PLANNING=1 < EXECUTING=2 < COMPLETE=3). BLOCKED=99 is lateral."
+        },
+        "lastEventOffset": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Byte offset of last event in e.jsonl. Set to max. Optional optimization for fast resume."
+        },
+        "createdTs": {
+          "type": "integer",
+          "description": "Unix ms when session was created. Set once."
+        },
+        "lastActiveTs": {
+          "type": "integer",
+          "description": "Unix ms of last dispatcher invocation. Set to max."
+        }
+      }
+    },
+    "plan": {
+      "type": "object",
+      "description": "Plan graph pointers. Owned by planGraph-exec module.",
+      "properties": {
+        "currentPath": {
+          "type": "string",
+          "description": "Relative path (from session root) to the current accepted planGraph.json. Overwrite is safe."
+        },
+        "mtime": {
+          "type": "integer",
+          "description": "File mtime (Unix ms) of the current planGraph. Overwrite with latest."
+        },
+        "hash": {
+          "type": "string",
+          "description": "Content hash (sha256 hex, first 16 chars) of the current planGraph. Overwrite; derived from file."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["none", "proposed", "accepted", "rejected", "stale"],
+          "description": "Current plan status. Overwrite is safe — phase transitions enforce ordering."
+        }
+      }
+    },
+    "cap": {
+      "type": "object",
+      "description": "Capability snapshots. Computed off hot-path, never on PreToolUse.",
+      "properties": {
+        "neo4j": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether neo4j config exists in hooks config."
+            },
+            "reachable": {
+              "type": "boolean",
+              "description": "Whether neo4j was reachable at last check."
+            },
+            "schemaVersion": {
+              "type": "string",
+              "description": "Graph schema version string from neo4j."
+            },
+            "lastCheckTs": {
+              "type": "integer",
+              "description": "Unix ms of last connectivity check. Set to max."
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "rlm": {
+      "type": "object",
+      "description": "RLM work state. Owned by rlm-work module.",
+      "properties": {
+        "policyLoaded": {
+          "type": "boolean",
+          "description": "Whether rlm-policy.json was found and loaded."
+        },
+        "lastPolicyHash": {
+          "type": "string",
+          "description": "Content hash of rlm-policy.json at load time."
+        },
+        "pendingSubagentFlags": {
+          "type": "object",
+          "description": "Map of toolName → boolean indicating 'needs subagent' annotation. Overwrite is safe.",
+          "additionalProperties": { "type": "boolean" }
+        }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "description": "Memory subsystem state. Owned by memory-journal and memory-activation modules.",
+      "properties": {
+        "journalPath": {
+          "type": "string",
+          "description": "Relative path to current experience.jsonl for this workId."
+        },
+        "activeCandidateCount": {
+          "type": "integer",
+          "description": "DERIVED on Stop/SessionStart from journal. Not a running counter — recomputed each time."
+        },
+        "lastMatchTs": {
+          "type": "integer",
+          "description": "Unix ms of last successful memory match. Set to max."
+        },
+        "pendingFollowups": {
+          "type": "object",
+          "description": "Map of followupId → { rule, triggeredAt, status }. Status values: pending, completed, skipped. Overwrite per key is safe.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "rule": { "type": "string" },
+              "triggeredAt": { "type": "integer" },
+              "status": { "type": "string", "enum": ["pending", "completed", "skipped"] }
+            }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": {
+    "type": "object",
+    "description": "Future module namespaces. Each module owns its own top-level key."
+  }
+}

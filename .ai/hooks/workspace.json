@@ -1,0 +1,25 @@
+{
+  "$comment": "Work folder layout. Every hook resolves paths through lib/paths.mjs using this config.",
+  "version": 2,
+
+  "workRoot": ".ai/tmp",
+
+  "session": {
+    "stateFile": "state.json",
+    "eventsFile": "events.jsonl",
+    "registryFile": "registry.jsonl"
+  },
+
+  "feature": {
+    "logsDir": "logs",
+    "outputDir": "output"
+  },
+
+  "hooks": {
+    "configFile": "config.json",
+    "policyFile": "rlm-policy.json",
+    "followupRulesFile": "followup-rules.json",
+    "manifestFile": "dispatch.manifest.json",
+    "schemaDir": "schema"
+  }
+}

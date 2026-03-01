@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "artifact-record.schema.json",
+  "title": "Artifact Record (single line in registry.jsonl)",
+  "description": "Append-only artifact registration. One per line in .ai/tmp/w/<sid>/a/<wid>/registry.jsonl. Used for inter-module discovery: producers register artifacts, consumers scan the registry.",
+  "type": "object",
+  "required": ["ts", "producer", "kind", "ref", "workId"],
+  "properties": {
+    "ts": {
+      "type": "integer",
+      "description": "Unix milliseconds when the artifact was registered."
+    },
+    "producer": {
+      "type": "string",
+      "description": "Module name that produced this artifact."
+    },
+    "kind": {
+      "type": "string",
+      "description": "Artifact type tag for discovery.",
+      "examples": [
+        "plan_graph",
+        "plan_manifest",
+        "graph_invariants",
+        "context_packet",
+        "memory_experience",
+        "memory_candidates",
+        "memory_summary",
+        "followup_result",
+        "adr_draft",
+        "session_summary",
+        "subagent_output",
+        "compact_snapshot"
+      ]
+    },
+    "ref": {
+      "type": "string",
+      "description": "Relative path from session root (.ai/tmp/w/<sid>/) to the artifact file."
+    },
+    "workId": {
+      "type": "string",
+      "pattern": "^w[0-9]{3}$",
+      "description": "Work unit this artifact belongs to."
+    },
+    "hash": {
+      "type": "string",
+      "description": "Content hash (sha256 first 16 hex chars). Recommended for dedup and integrity checks.",
+      "pattern": "^[a-f0-9]{16}$"
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Short human-readable description of the artifact content."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Lexemes, domain refs, or scope markers for relevance matching."
+    },
+    "dependsOn": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Refs or hashes of artifacts this one depends on."
+    },
+    "agentId": {
+      "type": "string",
+      "description": "Agent that produced this artifact (if subagent)."
+    },
+    "supersedes": {
+      "type": "string",
+      "description": "Ref of a prior artifact this one replaces. For versioning."
+    }
+  },
+  "additionalProperties": false
+}

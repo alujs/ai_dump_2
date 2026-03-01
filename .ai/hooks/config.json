@@ -1,0 +1,39 @@
+{
+  "$comment": "Per-feature hook configuration. Features read this via ctx.config.<featureName>. Centralizes output filenames, subdir names, and knobs so nothing is hardcoded in module code.",
+
+  "session": {
+    "$comment": "Session bookkeeper — no feature-specific config needed beyond manifest"
+  },
+
+  "graph-pretooluse": {
+    "$comment": "Unbounded tool guard — pure pattern matching, no output files"
+  },
+
+  "planGraph-exec": {
+    "planGraphFile": "planGraph.json"
+  },
+
+  "plan-subagent-contract": {
+    "subagentDir": "sa",
+    "agentTypeDir": "Plan",
+    "requiredOutputs": ["planGraph.json", "manifest.json"]
+  },
+
+  "rlm-work": {
+    "subagentDir": "sa"
+  },
+
+  "memory-journal": {
+    "experienceFile": "experience.jsonl",
+    "candidatesFile": "candidates.json"
+  },
+
+  "memory-activation": {
+    "$comment": "Reads followup-rules.json via ctx.paths — no feature-specific output config"
+  },
+
+  "stop-synth": {
+    "summaryFile": "summary.md",
+    "adrDir": "adr"
+  }
+}
