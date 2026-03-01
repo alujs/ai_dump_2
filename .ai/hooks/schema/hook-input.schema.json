@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hook-input.schema.json",
+  "title": "Hook Input (stdin payload from VS Code)",
+  "description": "Normalized representation of what VS Code sends to hook commands on stdin. The dispatcher reads this, extracts the event-specific fields, and populates ctx.event.",
+  "type": "object",
+  "required": ["event"],
+  "properties": {
+    "event": {
+      "type": "string",
+      "enum": ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PreCompact", "Stop", "SubagentStart", "SubagentStop"],
+      "description": "Hook event name. Also passed as argv[2] to the dispatcher."
+    },
+    "sessionId": {
+      "type": "string",
+      "description": "VS Code-provided session identifier, if available."
+    },
+    "agentName": {
+      "type": "string",
+      "description": "The agent/model name (e.g. 'copilot', 'cline')."
+    },
+    "prompt": {
+      "type": "string",
+      "description": "User prompt text. Present on UserPromptSubmit."
+    },
+    "transcript_path": {
+      "type": "string",
+      "description": "Path to conversation transcript file. Present on UserPromptSubmit if the sender is a human (not a subagent)."
+    },
+    "toolName": {
+      "type": "string",
+      "description": "Name of the tool being invoked. Present on PreToolUse and PostToolUse."
+    },
+    "toolInput": {
+      "type": "object",
+      "description": "Tool input parameters. Present on PreToolUse and PostToolUse.",
+      "additionalProperties": true
+    },
+    "toolOutput": {
+      "description": "Tool output/result. Present on PostToolUse only.",
+      "oneOf": [
+        { "type": "object", "additionalProperties": true },
+        { "type": "string" },
+        { "type": "null" }
+      ]
+    },
+    "toolError": {
+      "type": "string",
+      "description": "Tool error message. Present on PostToolUse if the tool failed."
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["allow", "ask", "deny"],
+      "description": "Prior decision from VS Code (e.g., user override). Rare."
+    },
+    "subagentId": {
+      "type": "string",
+      "description": "Subagent identifier. Present on SubagentStart/SubagentStop."
+    },
+    "subagentType": {
+      "type": "string",
+      "description": "Subagent type label (e.g. 'Plan', 'Execute', 'Research'). Present on SubagentStart/SubagentStop."
+    },
+    "subagentPrompt": {
+      "type": "string",
+      "description": "Subagent prompt/description. Present on SubagentStart."
+    },
+    "subagentResult": {
+      "type": "string",
+      "description": "Subagent final output. Present on SubagentStop."
+    },
+    "compactSummary": {
+      "type": "string",
+      "description": "Context summary generated before compaction. Present on PreCompact."
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ctx.schema.json",
+  "title": "Dispatcher Context (ctx)",
+  "description": "The in-memory context object constructed by the dispatcher and passed to every module's handle() function. This schema is for test harness validation; ctx is never serialized to disk.",
+  "type": "object",
+  "required": ["ids", "event", "paths", "state", "cap", "timers"],
+  "properties": {
+    "ids": {
+      "type": "object",
+      "description": "Identity tokens for the current invocation.",
+      "required": ["sessionId", "workId", "agentId", "turnId", "hookRunId"],
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{8}$",
+          "description": "8-char lowercase hex. Minted on SessionStart, stable for session lifetime."
+        },
+        "workId": {
+          "type": "string",
+          "pattern": "^w[0-9]{3}$",
+          "description": "Work unit counter (w001, w002, ...). Incremented by policy."
+        },
+        "agentId": {
+          "type": "string",
+          "pattern": "^[ua][0-9]{2}$",
+          "description": "u00 = main user agent. a01+ = subagents."
+        },
+        "turnId": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Monotonic turn counter. Incremented on each UserPromptSubmit."
+        },
+        "hookRunId": {
+          "type": "string",
+          "description": "Unique per dispatcher invocation: <eventName>-<turnId>-<timestampMs>"
+        }
+      }
+    },
+    "event": {
+      "type": "object",
+      "description": "Normalized hook input. Dispatcher extracts relevant fields from stdin and populates this.",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PreCompact", "Stop", "SubagentStart", "SubagentStop"]
+        },
+        "toolName": { "type": "string" },
+        "toolInput": { "type": "object", "additionalProperties": true },
+        "toolOutput": {},
+        "toolError": { "type": "string" },
+        "prompt": { "type": "string" },
+        "transcript_path": { "type": "string" },
+        "subagentId": { "type": "string" },
+        "subagentType": { "type": "string" },
+        "subagentPrompt": { "type": "string" },
+        "subagentResult": { "type": "string" },
+        "compactSummary": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "paths": {
+      "type": "object",
+      "description": "Pre-computed absolute paths. Modules use these instead of constructing paths.",
+      "required": ["repoRoot", "sessionRoot", "artifactRoot", "currentWorkRoot"],
+      "properties": {
+        "repoRoot": {
+          "type": "string",
+          "description": "Absolute path to the repository root (where .ai/ lives)."
+        },
+        "sessionRoot": {
+          "type": "string",
+          "description": "Absolute path to .ai/tmp/w/<sid>/"
+        },
+        "artifactRoot": {
+          "type": "string",
+          "description": "Absolute path to .ai/tmp/w/<sid>/a/"
+        },
+        "currentWorkRoot": {
+          "type": "string",
+          "description": "Absolute path to .ai/tmp/w/<sid>/a/<wid>/"
+        }
+      }
+    },
+    "state": {
+      "$ref": "state.schema.json",
+      "description": "Loaded from s.json. Read-only during module execution. Modules express writes via statePatch in HookAction."
+    },
+    "cap": {
+      "type": "object",
+      "description": "Cached capability snapshots. Read-only on PreToolUse (never computed on hot path).",
+      "properties": {
+        "neo4j": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "reachable": { "type": "boolean", "default": false },
+            "schemaVersion": { "type": "string", "default": "" },
+            "lastCheckTs": { "type": "integer", "default": 0, "description": "Unix ms of last connectivity check." }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "timers": {
+      "type": "object",
+      "description": "Budget enforcement. Dispatcher sets startMs and budgetMs; modules can read elapsed().",
+      "required": ["startMs", "budgetMs"],
+      "properties": {
+        "startMs": {
+          "type": "integer",
+          "description": "performance.now() at dispatcher start."
+        },
+        "budgetMs": {
+          "type": "integer",
+          "description": "Max milliseconds for this event, from manifest."
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

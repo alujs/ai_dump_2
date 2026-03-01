@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "followup-rules.schema.json",
+  "title": "Memory Activation Followup Rules",
+  "description": "Static, human-authored rules that drive the memory-activation module. These are the 'standalone value' of memory-activation — they work without the journal or Neo4j. Located at .ai/hooks/followup-rules.json.",
+  "type": "object",
+  "required": ["version", "rules"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version. Must be 1."
+    },
+    "rules": {
+      "type": "array",
+      "description": "Ordered list of followup rules. Evaluated top-to-bottom; first match wins unless multiMatch is true.",
+      "items": {
+        "type": "object",
+        "required": ["id", "trigger", "followup"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique rule identifier (e.g. 'non-css-edit-check-tests')."
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of what this rule does and why."
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether this rule is active."
+          },
+          "trigger": {
+            "type": "object",
+            "description": "Conditions that activate this followup.",
+            "required": ["event"],
+            "properties": {
+              "event": {
+                "type": "string",
+                "enum": ["PostToolUse", "PreToolUse"],
+                "description": "Which event to evaluate this trigger on."
+              },
+              "toolName": {
+                "type": "string",
+                "description": "Tool name that must match (exact). If omitted, matches any tool."
+              },
+              "toolNamePattern": {
+                "type": "string",
+                "description": "Regex pattern matched against tool name. Mutually exclusive with toolName."
+              },
+              "pathPatterns": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Glob patterns matched against file paths in tool input. At least one must match."
+              },
+              "excludePathPatterns": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Glob patterns that exclude matches. If any match, rule does not fire."
+              },
+              "conditions": {
+                "type": "array",
+                "description": "Additional conditions (all must be true).",
+                "items": {
+                  "type": "object",
+                  "required": ["field", "op", "value"],
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "description": "Dot-path into ctx.event or ctx.state (e.g. 'toolInput.filePath', 'state.core.phase')."
+                    },
+                    "op": {
+                      "type": "string",
+                      "enum": ["eq", "neq", "contains", "matches", "exists", "notExists"],
+                      "description": "Comparison operator."
+                    },
+                    "value": {
+                      "description": "Value to compare against. Type depends on operator."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "followup": {
+            "type": "object",
+            "description": "What to do when the trigger fires.",
+            "required": ["action"],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": ["inject_context", "warn", "enqueue_tool", "ask"],
+                "description": "inject_context: add additionalContext. warn: add warning. enqueue_tool: flag a tool call that should happen next. ask: prompt the agent to confirm."
+              },
+              "contextKey": {
+                "type": "string",
+                "description": "Key for injected context (when action=inject_context)."
+              },
+              "contextValue": {
+                "type": "string",
+                "description": "Template string for injected context. Supports {{variable}} substitution from trigger match data."
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable message for warn/ask actions."
+              },
+              "toolHint": {
+                "type": "object",
+                "description": "Suggested tool call for enqueue_tool action.",
+                "properties": {
+                  "toolName": { "type": "string" },
+                  "inputTemplate": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "description": "Template for tool input. Supports {{variable}} substitution."
+                  }
+                }
+              },
+              "priority": {
+                "type": "string",
+                "enum": ["high", "normal", "low"],
+                "default": "normal",
+                "description": "Priority of the followup. High = should run before next user-facing action."
+              }
+            }
+          },
+          "cooldown": {
+            "type": "object",
+            "description": "Prevent the rule from firing repeatedly.",
+            "properties": {
+              "perSession": {
+                "type": "integer",
+                "description": "Max times this rule can fire per session."
+              },
+              "perWorkId": {
+                "type": "integer",
+                "description": "Max times this rule can fire per workId."
+              },
+              "intervalMs": {
+                "type": "integer",
+                "description": "Minimum milliseconds between firings."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

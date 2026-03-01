@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rlm-policy.schema.json",
+  "title": "RLM Policy",
+  "description": "Policy file controlling when the rlm-work module requires subagent delegation, warns about broad discovery, or denies direct tool use. Located at .ai/hooks/rlm-policy.json. If absent, rlm-work module operates in warn-only mode.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version. Must be 1."
+    },
+    "defaultMode": {
+      "type": "string",
+      "enum": ["deny", "ask", "warn", "allow"],
+      "default": "warn",
+      "description": "Default enforcement mode when a rule matches but no explicit mode is set on the rule."
+    },
+    "requireSubagent": {
+      "type": "array",
+      "description": "Tool names that require subagent delegation (plan + execute via subagent, not direct).",
+      "items": {
+        "type": "object",
+        "required": ["toolName"],
+        "properties": {
+          "toolName": {
+            "type": "string",
+            "description": "Exact tool name (e.g. 'create_file', 'replace_string_in_file', 'run_in_terminal')."
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["deny", "ask", "warn"],
+            "description": "Override enforcement mode for this specific tool."
+          },
+          "exemptPatterns": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Glob patterns for file paths that are exempt from subagent requirement (e.g. '.ai/tmp/**')."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Human-readable reason shown to agent on deny/ask/warn."
+          }
+        }
+      }
+    },
+    "broadDiscovery": {
+      "type": "object",
+      "description": "Rules for detecting and controlling overly broad search/grep/read operations.",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["deny", "ask", "warn", "allow"],
+          "default": "warn",
+          "description": "What to do when broad discovery is detected."
+        },
+        "rules": {
+          "type": "array",
+          "description": "Patterns that indicate broad discovery.",
+          "items": {
+            "type": "object",
+            "required": ["toolName", "check"],
+            "properties": {
+              "toolName": {
+                "type": "string",
+                "description": "Tool name to check (e.g. 'grep_search', 'semantic_search', 'file_search')."
+              },
+              "check": {
+                "type": "string",
+                "enum": ["no_include_pattern", "wildcard_query", "max_results_high", "no_scope"],
+                "description": "Type of broad-discovery check to apply."
+              },
+              "threshold": {
+                "type": "integer",
+                "description": "Numeric threshold for checks like max_results_high."
+              },
+              "reason": {
+                "type": "string",
+                "description": "Human-readable reason for the restriction."
+              }
+            }
+          }
+        }
+      }
+    },
+    "phaseOverrides": {
+      "type": "object",
+      "description": "Per-phase overrides for RLM rules. Keys are phase names.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "requireSubagent": {
+            "type": "string",
+            "enum": ["enforce", "skip"],
+            "description": "Whether to enforce subagent requirements in this phase."
+          },
+          "broadDiscovery": {
+            "type": "string",
+            "enum": ["enforce", "skip"],
+            "description": "Whether to enforce broad discovery rules in this phase."
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

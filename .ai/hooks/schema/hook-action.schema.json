@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hook-action.schema.json",
+  "title": "HookAction",
+  "description": "The object returned by a module's handle() function. All fields are optional. The dispatcher collects these from each module and merges them according to CONTRACT.md rules.",
+  "type": "object",
+  "properties": {
+    "decision": {
+      "type": "string",
+      "enum": ["allow", "ask", "deny"],
+      "description": "PreToolUse only. deny > ask > allow. First deny/ask short-circuits the pipeline."
+    },
+    "denyReason": {
+      "type": "string",
+      "description": "Human-readable reason. Required when decision is deny or ask."
+    },
+    "inputMetadata": {
+      "type": "object",
+      "description": "Structural stamps merged into tool input as _hook* prefixed keys. Only the session module should set this (enforced by manifest rewriteOwner).",
+      "properties": {
+        "_hookSessionId": { "type": "string" },
+        "_hookWorkId": { "type": "string" },
+        "_hookArtifactRoot": { "type": "string" },
+        "_hookTurnId": { "type": "integer" }
+      },
+      "additionalProperties": {
+        "type": ["string", "integer", "boolean"]
+      }
+    },
+    "updatedInput": {
+      "type": "object",
+      "description": "Semantic rewrite of tool input. Overwrites matching keys in the original tool input. Only the manifest-configured rewriteOwner module should set this. First writer wins; later writers are warned and ignored.",
+      "additionalProperties": true
+    },
+    "additionalContext": {
+      "type": "array",
+      "description": "Context items to inject into the agent's context window. Only supported on events that allow additionalContext (SessionStart, PreToolUse, SubagentStart).",
+      "items": {
+        "type": "object",
+        "required": ["key", "value"],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Unique key for this context item."
+          },
+          "value": {
+            "type": "string",
+            "description": "Text content injected into agent context."
+          }
+        }
+      }
+    },
+    "statePatch": {
+      "type": "object",
+      "description": "JSON merge-patch applied to ctx.state at commit. MUST contain only idempotent fields (set-if-newer, set-to-max, set-once). No counters. No arrays. No read-modify-write.",
+      "additionalProperties": true
+    },
+    "emitEvents": {
+      "type": "array",
+      "description": "Structured event objects appended to e.jsonl. Each must conform to event-record.schema.json.",
+      "items": { "$ref": "event-record.schema.json" }
+    },
+    "registerArtifacts": {
+      "type": "array",
+      "description": "Artifact registration records appended to a/<wid>/registry.jsonl. Each must conform to artifact-record.schema.json.",
+      "items": { "$ref": "artifact-record.schema.json" }
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Human-readable warning strings. Stored to events and optionally surfaced to the user.",
+      "items": { "type": "string" }
+    },
+    "metrics": {
+      "type": "object",
+      "description": "Optional performance metrics for this module invocation.",
+      "properties": {
+        "ms": {
+          "type": "number",
+          "description": "Wall-clock milliseconds this module took."
+        }
+      },
+      "additionalProperties": {
+        "type": ["number", "string", "boolean"]
+      }
+    }
+  },
+  "additionalProperties": false
+}

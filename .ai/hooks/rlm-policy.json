@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "defaultMode": "warn",
+  "requireSubagent": [
+    {
+      "toolName": "create_file",
+      "mode": "warn",
+      "exemptPatterns": [".ai/tmp/**", ".ai/hooks/**"],
+      "reason": "File creation outside .ai/ should go through a planned subagent to avoid orphaned artifacts."
+    },
+    {
+      "toolName": "replace_string_in_file",
+      "mode": "warn",
+      "exemptPatterns": [".ai/tmp/**", ".ai/hooks/**"],
+      "reason": "Source edits should be planned and scoped via subagent to reduce churn."
+    },
+    {
+      "toolName": "multi_replace_string_in_file",
+      "mode": "warn",
+      "exemptPatterns": [".ai/tmp/**", ".ai/hooks/**"],
+      "reason": "Batch edits should be planned and scoped via subagent."
+    },
+    {
+      "toolName": "run_in_terminal",
+      "mode": "ask",
+      "exemptPatterns": [],
+      "reason": "Terminal commands have side effects. Prefer subagent with explicit plan node."
+    }
+  ],
+  "broadDiscovery": {
+    "mode": "warn",
+    "rules": [
+      {
+        "toolName": "grep_search",
+        "check": "no_include_pattern",
+        "reason": "grep_search without includePattern scans the entire repo. Scope it."
+      },
+      {
+        "toolName": "file_search",
+        "check": "wildcard_query",
+        "reason": "Overly broad file_search glob. Narrow the pattern."
+      },
+      {
+        "toolName": "grep_search",
+        "check": "max_results_high",
+        "threshold": 500,
+        "reason": "maxResults > 500 is likely unbounded exploration."
+      }
+    ]
+  },
+  "phaseOverrides": {
+    "PLANNING": {
+      "requireSubagent": "skip",
+      "broadDiscovery": "enforce"
+    },
+    "EXECUTING": {
+      "requireSubagent": "enforce",
+      "broadDiscovery": "enforce"
+    }
+  }
+}

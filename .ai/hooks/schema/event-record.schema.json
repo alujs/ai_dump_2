@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "event-record.schema.json",
+  "title": "Event Record (single line in e.jsonl)",
+  "description": "Append-only structured event. This is the authoritative log. One JSON object per line, newline-delimited. Events are never edited or deleted.",
+  "type": "object",
+  "required": ["ts", "event", "producer", "kind"],
+  "properties": {
+    "ts": {
+      "type": "integer",
+      "description": "Unix milliseconds when the event was created."
+    },
+    "event": {
+      "type": "string",
+      "enum": ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PreCompact", "Stop", "SubagentStart", "SubagentStop"],
+      "description": "The hook event that triggered this record."
+    },
+    "producer": {
+      "type": "string",
+      "description": "Module name that emitted this event (e.g. 'session', 'graph-pretooluse')."
+    },
+    "kind": {
+      "type": "string",
+      "description": "Event type tag for filtering/querying.",
+      "examples": [
+        "SESSION_INIT",
+        "TURN_INCREMENT",
+        "PROMPT_AUDIT",
+        "TOOL_DECISION",
+        "TOOL_OUTCOME",
+        "PLAN_GRAPH_USED",
+        "PLAN_GRAPH_MISSING",
+        "PLAN_GRAPH_DENY",
+        "PLAN_GRAPH_WARN",
+        "UNBOUNDED_GREP_DENY",
+        "UNBOUNDED_GREP_WARN",
+        "PHASE_TRANSITION",
+        "SUBAGENT_INJECT",
+        "SUBAGENT_HARVEST",
+        "ARTIFACT_REGISTERED",
+        "MEMORY_MATCH",
+        "MEMORY_CANDIDATE",
+        "MEMORY_FOLLOWUP_TRIGGER",
+        "MEMORY_FOLLOWUP_COMPLETE",
+        "RLM_SUBAGENT_REQUIRED",
+        "ERROR_MODULE",
+        "ERROR_MODULE_CRITICAL",
+        "BUDGET_EXCEEDED",
+        "COMPACT_SNAPSHOT",
+        "SESSION_STOP"
+      ]
+    },
+    "hookRunId": {
+      "type": "string",
+      "description": "Dispatcher invocation ID for correlation."
+    },
+    "turnId": {
+      "type": "integer",
+      "description": "Turn counter at time of event."
+    },
+    "workId": {
+      "type": "string",
+      "description": "Work unit ID at time of event."
+    },
+    "toolName": {
+      "type": "string",
+      "description": "Tool name, if event relates to a tool call."
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["allow", "ask", "deny"],
+      "description": "Decision made, if this is a TOOL_DECISION event."
+    },
+    "reason": {
+      "type": "string",
+      "description": "Human-readable reason for the decision/action."
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["UNINITIALIZED", "PLANNING", "EXECUTING", "COMPLETE", "BLOCKED"],
+      "description": "Phase at time of event, or new phase if PHASE_TRANSITION."
+    },
+    "paths": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "File paths touched or relevant to this event."
+    },
+    "data": {
+      "type": "object",
+      "description": "Arbitrary structured payload. Schema depends on kind.",
+      "additionalProperties": true
+    },
+    "error": {
+      "type": "object",
+      "description": "Error details if this is an ERROR_* event.",
+      "properties": {
+        "module": { "type": "string" },
+        "message": { "type": "string" },
+        "stackHash": {
+          "type": "string",
+          "description": "SHA256 first 8 chars of stack trace. For dedup, not debugging."
+        }
+      }
+    },
+    "ms": {
+      "type": "number",
+      "description": "Duration in milliseconds, if timed."
+    }
+  },
+  "additionalProperties": false
+}

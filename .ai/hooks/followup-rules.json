@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "non-css-edit-check-tests",
+      "description": "When a non-CSS source file is edited, remind the agent to check for affected unit tests.",
+      "enabled": true,
+      "trigger": {
+        "event": "PostToolUse",
+        "toolNamePattern": "replace_string_in_file|multi_replace_string_in_file|create_file",
+        "pathPatterns": ["src/**/*.ts", "src/**/*.html"],
+        "excludePathPatterns": ["**/*.css", "**/*.scss", "**/*.spec.ts", "**/*.cy.ts", ".ai/**"]
+      },
+      "followup": {
+        "action": "inject_context",
+        "contextKey": "followup-test-check",
+        "contextValue": "A source file was modified ({{matchedPath}}). Check if there are associated .spec.ts files that need updating. Use grep_search or file_search to locate them before proceeding.",
+        "priority": "high"
+      },
+      "cooldown": {
+        "perWorkId": 3,
+        "intervalMs": 30000
+      }
+    },
+    {
+      "id": "adp-edit-check-migration",
+      "description": "When an ADP component template is edited, remind about SDF migration status.",
+      "enabled": true,
+      "trigger": {
+        "event": "PostToolUse",
+        "toolNamePattern": "replace_string_in_file|multi_replace_string_in_file",
+        "pathPatterns": ["**/*.html"],
+        "conditions": [
+          {
+            "field": "toolInput.oldString",
+            "op": "matches",
+            "value": "adp-"
+          }
+        ]
+      },
+      "followup": {
+        "action": "warn",
+        "message": "This edit touches an adp-* component. Check the migration policy for SDF equivalents before modifying ADP usage. See .ai/graph/seed/ for migration rules.",
+        "priority": "high"
+      },
+      "cooldown": {
+        "perWorkId": 2
+      }
+    },
+    {
+      "id": "codemod-over-manual-edit",
+      "description": "When the agent manually edits a file that has a known codemod recipe, suggest using the codemod instead.",
+      "enabled": true,
+      "trigger": {
+        "event": "PreToolUse",
+        "toolName": "replace_string_in_file",
+        "pathPatterns": ["src/**/*.ts"],
+        "conditions": [
+          {
+            "field": "state.core.phase",
+            "op": "eq",
+            "value": "EXECUTING"
+          }
+        ]
+      },
+      "followup": {
+        "action": "inject_context",
+        "contextKey": "followup-codemod-hint",
+        "contextValue": "Before making this manual edit, check if a codemod recipe exists for this transformation. Recipes are in .ai/graph/seed/recipe/. Using a codemod is more reliable and repeatable.",
+        "priority": "normal"
+      },
+      "cooldown": {
+        "perSession": 5,
+        "intervalMs": 60000
+      }
+    },
+    {
+      "id": "large-file-edit-warning",
+      "description": "Warn when editing files that are known to be fragile in the legacy codebase.",
+      "enabled": true,
+      "trigger": {
+        "event": "PreToolUse",
+        "toolNamePattern": "replace_string_in_file|multi_replace_string_in_file",
+        "pathPatterns": ["**/app.module.ts", "**/app-routing.module.ts", "**/shared.module.ts"],
+        "excludePathPatterns": [".ai/**"]
+      },
+      "followup": {
+        "action": "ask",
+        "message": "This is a high-risk shared module in the legacy Angular 14 codebase. Edits here affect many downstream consumers. Ensure you have a plan node authorizing this change and have checked for circular dependency risks.",
+        "priority": "high"
+      },
+      "cooldown": {
+        "perWorkId": 1
+      }
+    }
+  ]
+}

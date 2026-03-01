@@ -1,0 +1,96 @@
+{
+  "$schema": "./schema/dispatch-manifest.schema.json",
+  "$comment": "Hook dispatcher manifest — controls which modules run, in what order, with what constraints.",
+
+  "version": 1,
+
+  "budgets": {
+    "PreToolUse":       300,
+    "PostToolUse":      500,
+    "UserPromptSubmit": 1000,
+    "SessionStart":     5000,
+    "Stop":             5000,
+    "PreCompact":       1000,
+    "SubagentStart":    1000,
+    "SubagentStop":     1000
+  },
+
+  "enforcePhases": false,
+
+  "phasePolicy": {
+    "UNINITIALIZED": { "allowTools": ["semantic_search", "read_file", "grep_search", "list_dir", "file_search"], "mode": "warn" },
+    "PLANNING":      { "allowTools": ["semantic_search", "read_file", "grep_search", "list_dir", "file_search", "runSubagent"], "mode": "warn" },
+    "EXECUTING":     { "allowTools": "*", "mode": "allow" },
+    "COMPLETE":      { "allowTools": ["read_file", "grep_search"], "mode": "warn" },
+    "BLOCKED":       { "allowTools": ["read_file"], "mode": "deny" }
+  },
+
+  "rewriteOwner": {
+    "inputMetadata": "session",
+    "updatedInput": "planGraph-exec"
+  },
+
+  "gc": {
+    "maxAgeDays": 7,
+    "maxSessions": 20
+  },
+
+  "modules": {
+    "session": {
+      "enabled": true,
+      "priority": 0,
+      "hotPathSafe": true,
+      "critical": true,
+      "path": "./features/session/hook.mjs"
+    },
+    "graph-pretooluse": {
+      "enabled": true,
+      "priority": 10,
+      "hotPathSafe": true,
+      "critical": true,
+      "path": "./features/graph-pretooluse/hook.mjs"
+    },
+    "planGraph-exec": {
+      "enabled": true,
+      "priority": 20,
+      "hotPathSafe": true,
+      "critical": false,
+      "path": "./features/planGraph-exec/hook.mjs"
+    },
+    "plan-subagent-contract": {
+      "enabled": true,
+      "priority": 30,
+      "hotPathSafe": false,
+      "critical": false,
+      "path": "./features/plan-subagent-contract/hook.mjs"
+    },
+    "rlm-work": {
+      "enabled": true,
+      "priority": 40,
+      "hotPathSafe": true,
+      "critical": false,
+      "path": "./features/rlm-work/hook.mjs"
+    },
+    "memory-journal": {
+      "enabled": true,
+      "priority": 50,
+      "hotPathSafe": false,
+      "critical": false,
+      "path": "./features/memory-journal/hook.mjs"
+    },
+    "memory-activation": {
+      "enabled": true,
+      "priority": 60,
+      "hotPathSafe": true,
+      "critical": false,
+      "path": "./features/memory-activation/hook.mjs"
+    },
+    "stop-synth": {
+      "enabled": true,
+      "priority": 100,
+      "hotPathSafe": false,
+      "critical": false,
+      "path": "./features/stop-synth/hook.mjs"
+    }
+  }
+}

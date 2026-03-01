@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "SessionStart":      [{ "type": "command", "command": "bash .ai/hooks/dispatch-bridge.sh SessionStart",      "windows": "wsl bash .ai/hooks/dispatch-bridge.sh SessionStart",      "timeout": 15 }],
+    "UserPromptSubmit":  [{ "type": "command", "command": "bash .ai/hooks/dispatch-bridge.sh UserPromptSubmit",  "windows": "wsl bash .ai/hooks/dispatch-bridge.sh UserPromptSubmit",  "timeout": 10 }],
+    "PreToolUse":        [{ "type": "command", "command": "bash .ai/hooks/dispatch-bridge.sh PreToolUse",        "windows": "wsl bash .ai/hooks/dispatch-bridge.sh PreToolUse",        "timeout": 10 }],
+    "PostToolUse":       [{ "type": "command", "command": "bash .ai/hooks/dispatch-bridge.sh PostToolUse",       "windows": "wsl bash .ai/hooks/dispatch-bridge.sh PostToolUse",       "timeout": 10 }],
+    "PreCompact":        [{ "type": "command", "command": "bash .ai/hooks/dispatch-bridge.sh PreCompact",        "windows": "wsl bash .ai/hooks/dispatch-bridge.sh PreCompact",        "timeout": 10 }],
+    "Stop":              [{ "type": "command", "command": "bash .ai/hooks/dispatch-bridge.sh Stop",              "windows": "wsl bash .ai/hooks/dispatch-bridge.sh Stop",              "timeout": 15 }],
+    "SubagentStart":     [{ "type": "command", "command": "bash .ai/hooks/dispatch-bridge.sh SubagentStart",     "windows": "wsl bash .ai/hooks/dispatch-bridge.sh SubagentStart",     "timeout": 10 }],
+    "SubagentStop":      [{ "type": "command", "command": "bash .ai/hooks/dispatch-bridge.sh SubagentStop",      "windows": "wsl bash .ai/hooks/dispatch-bridge.sh SubagentStop",      "timeout": 10 }]
+  }
+}
