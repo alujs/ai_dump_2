@@ -1,0 +1,1429 @@
+{
+  "artifact": "PlanGraph",
+  "repo_snapshot_id": "working-tree",
+  "meta": {
+    "session": {
+      "id": "bedae61c-1bb2-47e0-ab1b-392089e18055",
+      "session_pack": {
+        "events_path": ".ai/tmp/bedae61c-1bb2-47e0-ab1b-392089e18055/events.jsonl",
+        "state_path": ".ai/tmp/bedae61c-1bb2-47e0-ab1b-392089e18055/state.json",
+        "registry_path": ".ai/tmp/bedae61c-1bb2-47e0-ab1b-392089e18055/registry.jsonl"
+      }
+    },
+    "prompt": {
+      "original": "Given https://arxiv.org/html/2602.20478v1 \n\nAnd the documents: https://code.visualstudio.com/docs/copilot/customization/custom-agents \nhttps://code.visualstudio.com/docs/copilot/customization/agent-skills\nhttps://code.visualstudio.com/docs/copilot/customization/hooks\n\nAnd our current repo. \n\nI would advise you to use subAgents to basically lay out the schemas and everything else out, one subAgent per document to get the schema and then have one or two subAgents slice apart all the work and come up with an implementation plan of sorts, we should probably use the atomic plan skill and then use citations from https://arxiv.org/html/2602.20478v1 ",
+      "source": "session-pack"
+    },
+    "jira": {
+      "tickets": []
+    },
+    "refs": {
+      "arxiv": ["https://arxiv.org/html/2602.20478v1", "https://arxiv.org/html/2512.24601v1"],
+      "vscode_docs": [
+        "https://code.visualstudio.com/docs/copilot/customization/custom-agents",
+        "https://code.visualstudio.com/docs/copilot/customization/agent-skills",
+        "https://code.visualstudio.com/docs/copilot/customization/hooks"
+      ]
+    },
+    "citation_policy": {
+      "rule": "Citations live inside planGraph only; nodes include citations when their rationale depends on an external source.",
+      "format": "Use explicit URL + section/figure labels where available (e.g. 'https://arxiv.org/html/2512.24601v1 §3.1').",
+      "scope": {
+        "paper_derived_nodes": "must include citations[]",
+        "mechanical_nodes": "may omit citations[]",
+        "meta_refs": "meta.refs is the canonical bibliography"
+      }
+    },
+    "strategy": {
+      "north_star": "Codify a repo-native, bounded, and verifiable Copilot customization workflow: graph-hook/session-pack for evidence + agents/skills/hooks for execution, with Neo4j-first discovery and explicitly labeled fallbacks.",
+      "non_goals": [
+        "No new long-running processes (servers/daemons/listeners)",
+        "No speculative contract claims when Neo4j is unavailable",
+        "No hook rewiring by default without a concrete one-shot script and a risk/benefit justification"
+      ],
+      "operating_model": {
+        "phases": [
+          {
+            "name": "Evidence",
+            "outcome": "Ground the plan in repo facts (hooks wiring, existing skills, graph-hook/session-pack constraints)"
+          },
+          {
+            "name": "Atomic Planning",
+            "outcome": "Emit one-node-per-file planGraph nodes with narrow scope.files_allow and deterministic anchors/search"
+          },
+          {
+            "name": "Implementation",
+            "outcome": "Execute nodes in dep order; keep changes minimal; record artifacts"
+          },
+          {
+            "name": "Verification",
+            "outcome": "Validate planGraph shape + run repo checks; ensure policies are enforced (Node-only, bounded search, fallback labeling)"
+          }
+        ],
+        "handoff_protocol": {
+          "inputs": [
+            "graph-hook context pack (bounded working set)",
+            "session-pack prompt/timeline",
+            "planGraph (this file)"
+          ],
+          "outputs": ["atomic plan nodes", "verification evidence (commands + outcomes)", "artifact ledger entries"]
+        }
+      },
+      "agent_roles": {
+        "orchestrator": {
+          "purpose": "Owns decomposition and planGraph authoring; delegates research/review/verification.",
+          "tool_boundary": "May use read/search tools + apply_patch only for planned changes; avoids broad grep; uses Node one-shot commands only."
+        },
+        "graph_first_researcher": {
+          "purpose": "Neo4j-first discovery via graph-hook; when unavailable, bounded scan labeled usage-only.",
+          "tool_boundary": "Read/search only; no edits unless explicitly requested by orchestrator node."
+        },
+        "reviewer": {
+          "purpose": "Read-only compliance review (repo policies, VS Code schema congruence, planGraph atomics)."
+        },
+        "verifier": {
+          "purpose": "Mechanical validation: planGraph validator + targeted tests; flags policy regressions."
+        },
+        "paper_synth": {
+          "purpose": "Map paper concepts into operational do/don't rules and explicit citations.",
+          "tool_boundary": "Read-only synthesis; does not rewire hooks by default."
+        },
+        "hooks_strategist": {
+          "purpose": "Explains which hook outputs/constraints are relied on and why; proposes safe one-shot scripts before wiring new events."
+        }
+      },
+      "neo4j_progressive_policy": {
+        "authoritative": "Neo4j-backed graph facts are authoritative for component contracts.",
+        "fallback": "When Neo4j/graph facts are unavailable, fallback is allowed only as bounded 'usage-only' scans and must be labeled as non-authoritative.",
+        "prohibited": ["Inventing component props/events", "Treating usage scans as definitive contracts"]
+      },
+      "hook_interaction_definition": {
+        "definition": "An agent 'interacts' with a hook when it relies on hook-injected context/constraints (e.g. scratchpad contract, planGraph contract injection) or uses hook-produced artifacts.",
+        "principle": "Prefer documenting hook consumption and constraints before changing hook wiring."
+      },
+      "cost_control": {
+        "principle": "Use recursive delegation selectively; cap redundant subcalls; batch related work in single passes; prefer deterministic probes over repeated broad searches.",
+        "source": "This is motivated by RLM-style recursion/verification tradeoffs (see citations in paper-derived nodes)."
+      }
+    },
+    "verification": {
+      "plan_validation": [
+        "node .github/skills/plan-graph/validate-plan-graph.mjs .ai/tmp/bedae61c-1bb2-47e0-ab1b-392089e18055/plan/planGraph.json"
+      ],
+      "implementation_checks": {
+        "policy": [
+          "No Python usage (repo hard rule)",
+          "No long-running processes/daemons",
+          "Scoped searching only; prefer graph-hook context-pack"
+        ],
+        "repo_commands": [
+          "yarn -s lint (or targeted lint task if present)",
+          "yarn -s test (or targeted jest config for touched libs)",
+          "yarn -s nx affected:test (optional, if appropriate for PR scope)"
+        ]
+      },
+      "matrix": [
+        {
+          "deliverable": "Agents (.github/agents/*)",
+          "verify": [
+            "Frontmatter loads (name/description/model/tools)",
+            "Tool boundaries match repo policies",
+            "Delegation/handoff rules are explicit"
+          ]
+        },
+        {
+          "deliverable": "Skill (.github/skills/codified-context/SKILL.md)",
+          "verify": [
+            "Frontmatter name matches directory",
+            "Neo4j-first fallback labeled usage-only",
+            "References existing graph-hook/session-pack/planGraph workflows"
+          ]
+        },
+        {
+          "deliverable": "Hook rationale (documentation or planGraph strategy)",
+          "verify": [
+            "Active hook events match .github/hooks/pi-ui-hooks.json",
+            "Missing events are justified by absence of safe scripts + complexity tradeoff"
+          ]
+        }
+      ]
+    },
+    "memory_architecture": {
+      "goal": "Make memory explicit, typed, replayable, and compactable: session intent (session-pack) + work execution (graph-hook rollups) + governance signals (MemoryRecord + evidence overlap) + optional portfolio batch artifacts. The model is a controller over these stores, not the store.",
+      "tiers": {
+        "M0_prompt_ephemeral": {
+          "what": "Current chat + in-flight context",
+          "rule": "Never treat M0 as durable; always reconstruct from M1/M2 when resuming.",
+          "max_tokens": "kept small; do not load bulk datasets"
+        },
+        "M1_session_pack_intent": {
+          "store": ".ai/tmp/<sessionId>/{events.jsonl,state.json,registry.jsonl}",
+          "source_of_truth": [
+            "Canonical user prompt: first events.jsonl record where event==UserPromptSubmit and kind==PROMPT",
+            "Session lifecycle: Stop event + core timestamps in state.json"
+          ],
+          "api": {
+            "writer_hooks": [
+              ".ai/hooks/session-pack/user-prompt-submit-hook.js",
+              ".ai/hooks/session-pack/session-start-hook.js",
+              ".ai/hooks/session-pack/stop-hook.js",
+              ".ai/hooks/session-pack/pre-tool-use-hook.js",
+              ".ai/hooks/session-pack/post-tool-use-hook.js"
+            ],
+            "read_protocol": [
+              "Read events.jsonl first for intent + timeline",
+              "Use state.json for cached pointers only (never authoritative)",
+              "Use registry.jsonl to register joins to workIds/worktrees/portfolio artifacts"
+            ]
+          }
+        },
+        "M2_work_rollup_execution": {
+          "store": ".ai/tmp/<workId>/hooks/graph-hook/{events.jsonl,index.json,context-pack.json}",
+          "contract": "Exactly three artifacts in the per-work graph-hook directory (enforced by rollup-store).",
+          "purpose": [
+            "Bounded next-step routing via suggestedActions",
+            "Structured augmentation entries with typed rankedRows + expansions",
+            "Carry forward governance signals as structured fields instead of re-deriving"
+          ],
+          "api": {
+            "writer_hooks": [
+              ".ai/hooks/graph-hook/graph-hook.js (PreToolUse)",
+              ".ai/hooks/graph-hook/post-tool-use-hook.js (PostToolUse)",
+              ".ai/hooks/graph-hook/rollup-store.js (storage)"
+            ],
+            "read_protocol": [
+              "Prefer index.json actionables/pattern aggregation for routing",
+              "Read context-pack.json only for the specific entryId referenced by hook output",
+              "Do not parse free-form stdout; prefer structured entries"
+            ]
+          }
+        },
+        "M3_governance_memory": {
+          "signals": {
+            "MemoryRecord": "Graph-native policy/process memory that can block or reroute (e.g., PLAN_SCOPE_VIOLATION)",
+            "EvidenceOverlap": "Computed overlap between graph-suggested candidate paths and observed tool-result paths"
+          },
+          "enforcement": {
+            "governor_rules": [
+              {
+                "if": "MemoryRecord.rejectionCodes includes PLAN_SCOPE_VIOLATION",
+                "then": "PLAN_ONLY_PAUSE (no further tools; produce re-scope)"
+              },
+              {
+                "if": "EvidenceOverlap ratio < 0.2 for 2 consecutive tool uses",
+                "then": "FORCE_RE-SCOPE (only suggestedActions reads; no search)"
+              },
+              {
+                "if": "patternSha256 repeats without new observedFilePaths",
+                "then": "SWITCH_TRAVERSAL_RECIPE (process-first/contract-first/impact-first)"
+              }
+            ]
+          },
+          "api": {
+            "writer": [
+              ".ai/hooks/graph-hook/evidence-index.js (archives tool behavior and overlap)",
+              "graph-hook augmenter: includes globalMemories bundle in augmentation payload when available"
+            ],
+            "consumer": "Orchestrator/controller reads these before deciding next actions"
+          }
+        },
+        "M4_portfolio_batch_memory_optional": {
+          "use_case": "150 Jira tickets + 150 CSV rows (bulk analysis) without token blowup",
+          "store": ".ai/tmp/<sessionId>/portfolio/{tickets.raw.jsonl,csv.raw.jsonl,join.index.json,episodes/*.json,worklist.jsonl,summary.json}",
+          "rule": "Model reads only bounded episode summaries + indexes; raw JSONL is paged deterministically."
+        }
+      },
+      "neo4j_retrieval_contract": {
+        "mechanism": "Neo4j/graph retrieval happens inside graph-hook augmenters; the model consumes the resulting structured payload (rankedRows, expansions) and stable ids.",
+        "expected_payload_shape": {
+          "rankedRows": {
+            "items": ["label", "primary", "secondary", "id"],
+            "labels_of_interest": [
+              "MemoryRecord",
+              "Process",
+              "AngularRoute",
+              "ComponentContract",
+              "ComponentApiSurface",
+              "SymbolDefinition",
+              "UsageExample",
+              "File"
+            ],
+            "id_convention": "May be an opaque graph id or file:<repoPath>; treat as stable token for subsequent expansions"
+          },
+          "fileExpansionRows": {
+            "purpose": "Typed neighborhood expansion (edges capped) including memory snippets and declared symbols",
+            "consumer_rule": "Prefer expansions for impact analysis; avoid rereads unless suggestedActions indicates"
+          },
+          "suggestedActions": {
+            "purpose": "Bounded queue of next tool calls",
+            "consumer_rule": "Treat as default routing; deviations must be justified and recorded"
+          }
+        }
+      },
+      "join_keys": {
+        "sessionId": "From hook input (session-pack); stable for the entire chat session",
+        "workId": "From .ai/tmp/current-work.json and graph-hook rollup root; stable for the bounded work context",
+        "worktree": "Optional isolation; recorded in session-pack registry.jsonl to tie code changes to evidence"
+      },
+      "precompact_consistency": {
+        "problem": "When the chat context compacts, M0 drops details; without a pre-compact summarization, the controller can drift.",
+        "proposal": {
+          "preferred": {
+            "hook_event": "PreCompact (if provided by VS Code hook runtime)",
+            "action": "Write a compact, typed snapshot into session-pack + graph-hook rollup pointers so the post-compact context can be reconstructed deterministically.",
+            "artifact": ".ai/tmp/<sessionId>/compact/{snapshot.json,summary.md}"
+          },
+          "fallback": {
+            "hook_event": "Stop (always available in current wiring)",
+            "action": "Write the same compact snapshot at Stop; next session start reads it as baseline."
+          }
+        },
+        "snapshot_schema": {
+          "fields": [
+            "intent: canonical prompt sha + 5-bullet goal",
+            "constraints: policy flags + tool boundaries",
+            "state: current workId + last patternSha256",
+            "governance: last MemoryRecord signals + overlap trend",
+            "next: bounded next actions (<=5)"
+          ],
+          "token_budget": "<= 2k tokens for summary; JSON is field-capped"
+        }
+      }
+    },
+    "interop_schema": {
+      "problem": "Today, session-pack (events.jsonl), graph-hook (context-pack/index), evidence-index, and subagent hooks all emit different shapes. Without a common envelope + versioning, systems cannot reliably consume each other and compaction/resume breaks.",
+      "decision": "Adopt a single interchange envelope ('PI_UI Interchange v1') that every durable memory artifact can embed or be losslessly adapted into.",
+      "schema_id": "pi-ui/interchange-envelope@v1",
+      "on_disk_schema": {
+        "json_schema_path": ".ai/schema/pi-ui-interchange-envelope.v1.schema.json",
+        "compat": "Existing artifacts remain, but writers add envelope fields OR emit a parallel *-enveloped.jsonl stream. Consumers prefer enveloped entries when present."
+      },
+      "envelope": {
+        "required": {
+          "schema": "string (must equal schema_id)",
+          "kind": "string enum (see kinds)",
+          "ts": "string (ISO timestamp)",
+          "ids": {
+            "eventId": "string (uuid or deterministic hash)",
+            "sessionId": "string",
+            "workId": "string?",
+            "spanId": "string?",
+            "parentSpanId": "string?",
+            "correlationId": "string? (ties tool-use ↔ tool-result ↔ graph augmentation)"
+          },
+          "producer": {
+            "system": "string enum: session-pack|graph-hook|subagent-task|plan-graph|human",
+            "version": "string (semver or git sha)",
+            "hookEventName": "string? (VS Code hook event)"
+          },
+          "pointers": {
+            "paths": "string[] (repo-relative; durable artifacts referenced)",
+            "contextPack": "{workId, entryId}? (when pointing into graph-hook context-pack)",
+            "transcript": "string? (transcript_path when relevant)"
+          },
+          "payload": {
+            "type": "string enum (see payload types)",
+            "data": "object (type-specific, schema validated)"
+          }
+        },
+        "optional": {
+          "governance": {
+            "memorySignals": "string[] (e.g. PLAN_SCOPE_VIOLATION)",
+            "evidenceOverlap": "{ratio:number, suggested:string[], observed:string[]}?",
+            "decision": "ALLOW|WARN|BLOCK?"
+          },
+          "integrity": {
+            "sha256": "string? (hash of canonicalized payload.data)",
+            "cap": "{maxBytes:number, truncated:boolean}?"
+          }
+        }
+      },
+      "kinds": {
+        "Intent": "User intent snapshot (from UserPromptSubmit + derived constraints)",
+        "Lifecycle": "SessionStart/Stop/PreCompact boundaries",
+        "ToolUse": "PreToolUse (planned) + PostToolUse (observed)",
+        "GraphAugmentation": "Neo4j-derived graph-hook augmentation payloads",
+        "AgentSpawn": "SubagentStart/SubagentStop + metadata",
+        "MemorySnapshot": "Compact snapshot artifact for resume after compaction",
+        "Portfolio": "Bulk episode summaries and joins",
+        "Decision": "Deterministic controller decisions (routing, heuristic selection, re-scope events)",
+        "SearchOutcome": "Negative/positive evidence from search-like actions (grep/file_search/semantic_search) including empty results",
+        "HumanOverride": "Explicit human interventions that change constraints/route/stop conditions"
+      },
+      "payload_types": {
+        "SessionEvent": {
+          "data": ["prompt?", "mode?", "notes?"],
+          "maps_from": ["session-pack PROMPT/STOP events"]
+        },
+        "ToolEvent": {
+          "data": ["toolName", "normalizedTool", "args?", "resultSummary?", "errors?"],
+          "maps_from": ["session-pack pre/post tool hooks", "graph-hook evidence-index observations"]
+        },
+        "GraphResult": {
+          "data": [
+            "query:{kind, terms?, seedPaths?}",
+            "rankedRows:{label,primary,secondary,id,score?}[]",
+            "expansions? (typed edges/neighborhood capped)",
+            "suggestedActions? (bounded next actions)",
+            "globalMemories? (MemoryRecord bundle)"
+          ],
+          "maps_from": ["graph-hook augmenter output + context-pack entry"]
+        },
+        "AgentEvent": {
+          "data": ["agentName", "reason", "inputsPointers", "outputsPointers"],
+          "maps_from": ["SubagentStart/SubagentStop hooks"]
+        },
+        "CompactSnapshot": {
+          "data": ["intent", "constraints", "state", "governance", "nextActions"],
+          "maps_from": ["PreCompact snapshot writer"]
+        },
+        "DecisionEvent": {
+          "data": [
+            "decisionType (route|heuristic|pause|rescope|delegate)",
+            "selected (agent?|heuristic?|policy?)",
+            "inputs (metrics window + last governance signals)",
+            "justification (short, deterministic)",
+            "nextActions (<=5)"
+          ],
+          "maps_from": ["heuristics-selector agent output", "orchestrator routing policy"]
+        },
+        "SearchOutcome": {
+          "data": [
+            "toolName (grep_search|file_search|semantic_search)",
+            "queryFingerprint (hash)",
+            "scope (includePattern/targetDir)",
+            "hitCount (int)",
+            "topHits? (<=10 paths)",
+            "negativeEvidence (boolean)",
+            "elapsedMs? (int)",
+            "followupHint? (bounded)"
+          ],
+          "maps_from": ["PostToolUse hook outputs + tool-result parsing"]
+        },
+        "HumanOverride": {
+          "data": [
+            "overrideType (stop|change-constraints|change-scope|select-agent|select-heuristic)",
+            "reason",
+            "delta (what changed)",
+            "effectiveUntil? (ts or eventId)",
+            "ack (boolean)"
+          ],
+          "maps_from": ["manual append to session-pack registry/events"]
+        }
+      },
+      "compatibility_matrix": {
+        "session_pack": {
+          "currently": "events.jsonl is a mix of event shapes; state.json is cached pointers",
+          "must_add": ["envelope.schema", "envelope.kind", "envelope.ids.sessionId", "envelope.payload"],
+          "join": "Write workId/worktree pointers into registry.jsonl as envelope.pointers.paths + ids.workId"
+        },
+        "graph_hook": {
+          "currently": "context-pack/index contain typed entries; schema exists for hook output",
+          "must_add": ["GraphAugmentation envelope with GraphResult payload", "ids.workId", "pointers.contextPack"],
+          "neo4j": "GraphResult payload is the contract boundary: consumers treat rankedRows/ids as stable graph handles"
+        },
+        "subagent_hooks": {
+          "currently": "subagent-task hook enforces scratchpad contract; plan-graph-hook injects planGraph",
+          "must_add": ["AgentSpawn envelope for SubagentStart/Stop with agentName + pointers"],
+          "join": "correlationId ties agent event to its produced artifacts in registry.jsonl"
+        }
+      },
+      "connectors_needed": {
+        "adapter_library": ".ai/shared/interchange/envelope.cjs (CommonJS; hooks are require()-based). Pure functions: makeEnvelope, embedEnvelope(legacyEvent,envelope), canonicalizeForHash, sha256OfPayload, validateEnvelope",
+        "writers": [
+          "session-pack hooks embed envelope into existing legacy event lines (backward compatible)",
+          "graph-hook embeds envelope summaries into existing rollup event records (no new files; preserves EXACTLY-3-artifacts contract)",
+          "subagent hooks embed AgentSpawn envelope into session-pack events"
+        ],
+        "validators": [
+          "A one-shot validator script validates newly written envelope lines against the JSON schema and records failures as governance decision BLOCK/WARN"
+        ]
+      }
+    },
+    "control_plane": {
+      "goal": "Turn the repo’s hooks + graph into a measurable closed-loop controller: observe → decide → act → validate → correct; not just a planning artifact.",
+      "observability": {
+        "telemetry_envelope": "All telemetry is emitted as interop_schema envelopes (schema_id pi-ui/interchange-envelope@v1) with kind ToolUse|GraphAugmentation|AgentSpawn|Lifecycle and governance fields when applicable.",
+        "metrics": {
+          "store": ".ai/tmp/<sessionId>/metrics/{events.enveloped.jsonl,metrics.jsonl,rollups/*.json}",
+          "computation": "One-shot reducers; bounded window (last N events) to avoid token blowups.",
+          "core": [
+            {
+              "name": "graph_overlap_ratio",
+              "definition": "|observed_paths ∩ suggested_paths| / max(1, |observed_paths|)",
+              "source": "graph-hook evidence-index + tool-result path extraction",
+              "use": "Detect thrash / unbounded exploration"
+            },
+            {
+              "name": "suggested_actions_deviation_rate",
+              "definition": "#tool_calls_not_in_suggestedActions / #tool_calls_total (windowed)",
+              "source": "graph-hook suggestedActions + session-pack tool-use",
+              "use": "Detect when controller ignores routing"
+            },
+            {
+              "name": "decomposition_atomicity_score",
+              "definition": "1 - (#nodes_with>1_target_file OR wide files_allow) / #nodes_total",
+              "source": "planGraph lint",
+              "use": "Reject decompositions that cannot be executed safely"
+            },
+            {
+              "name": "validation_pass_rate",
+              "definition": "#validators_passed / #validators_run (windowed)",
+              "source": "verifier outputs + session-pack",
+              "use": "Gate self-healing + stop escalation"
+            },
+            {
+              "name": "compact_drift",
+              "definition": "distance(snapshot.state, post-compact observed state) (categorical mismatches)",
+              "source": "PreCompact snapshot vs subsequent events",
+              "use": "Detect memory loss / resume drift"
+            },
+            {
+              "name": "null_hit_rate",
+              "definition": "#SearchOutcome(hitCount==0) / #SearchOutcome_total (windowed)",
+              "source": "SearchOutcome envelope events derived from grep/file_search/semantic_search",
+              "use": "Detect wasted exploration and missing anchors"
+            },
+            {
+              "name": "futile_search_streak",
+              "definition": "max consecutive SearchOutcome(hitCount==0) within a window",
+              "source": "SearchOutcome envelope events",
+              "use": "Trigger re-scope or heuristic switch quickly"
+            },
+            {
+              "name": "heuristic_flip_count",
+              "definition": "#DecisionEvent(decisionType='heuristic') changes within window",
+              "source": "Decision envelope events",
+              "use": "Detect unstable routing / flapping"
+            },
+            {
+              "name": "agent_misroute_rate",
+              "definition": "#DecisionEvent(route) followed by validator failures attributable to wrong role / wrong scope / wrong tools (windowed)",
+              "source": "Decision events + validator failures + governance codes",
+              "use": "Improve routing policy without needing model introspection"
+            },
+            {
+              "name": "human_override_count",
+              "definition": "#HumanOverride events within window",
+              "source": "HumanOverride envelope events",
+              "use": "Detect when automation is misaligned and require policy updates"
+            }
+          ]
+        },
+        "traceability": {
+          "correlationId": "Every tool-use/tool-result/graph augmentation/subagent span shares correlationId so reducers can join without parsing text.",
+          "artifact_registry": "session-pack registry.jsonl stores pointers to all artifacts produced in the session (planGraph, snapshots, reducers, reports)."
+        }
+      },
+      "self_healing": {
+        "principle": "Self-healing is a deterministic set of correction actions triggered by metric thresholds and governance signals, executed as one-shot scripts or constrained agent roles.",
+        "triggers": [
+          {
+            "if": "graph_overlap_ratio < 0.2 for 2 windows",
+            "then": ["FORCE_GRAPH_FIRST", "RESTRICT_SEARCH_SCOPE", "REPLAY_SUGGESTED_ACTIONS"]
+          },
+          {
+            "if": "suggested_actions_deviation_rate > 0.6",
+            "then": ["SPAWN_REVIEWER", "WRITE_DEVIATION_JUSTIFICATION", "RE-PLAN"]
+          },
+          {
+            "if": "decomposition_atomicity_score < 0.8",
+            "then": ["SPAWN_DECOMPOSITION_VALIDATOR", "SPLIT_NODES", "RE-VALIDATE"]
+          },
+          {
+            "if": "compact_drift indicates missing workId/sessionId joins",
+            "then": ["RECONSTRUCT_FROM_M1_M2", "WRITE_NEW_SNAPSHOT", "PAUSE_AUTOMATION"]
+          },
+          {
+            "if": "futile_search_streak >= 2",
+            "then": ["RESTRICT_SEARCH_SCOPE", "FORCE_GRAPH_FIRST", "SWITCH_TRAVERSAL_RECIPE"]
+          },
+          {
+            "if": "null_hit_rate > 0.5 (windowed) AND suggested_actions_deviation_rate > 0.4",
+            "then": ["REPLAY_SUGGESTED_ACTIONS", "SPAWN_REVIEWER", "RE-PLAN"]
+          },
+          {
+            "if": "heuristic_flip_count > 3",
+            "then": ["PAUSE_AUTOMATION", "SPAWN_REVIEWER", "WRITE_DEVIATION_JUSTIFICATION"]
+          },
+          {
+            "if": "human_override_count >= 1",
+            "then": ["PAUSE_AUTOMATION", "WRITE_OVERRIDE_EVENT", "RE-PLAN"]
+          }
+        ],
+        "corrections": {
+          "FORCE_GRAPH_FIRST": "Only allow actions derived from graph-hook suggestedActions until overlap recovers.",
+          "RESTRICT_SEARCH_SCOPE": "Disallow grep/file_search without includePattern anchored to 1-2 dirs.",
+          "REPLAY_SUGGESTED_ACTIONS": "Execute the top K suggestedActions (read-only first) before any new exploration.",
+          "SPAWN_REVIEWER": "Delegate to reviewer agent to explain deviation and propose constrained next steps.",
+          "SPAWN_DECOMPOSITION_VALIDATOR": "Delegate to a decomposition validator agent/script that rewrites planGraph nodes into atomic units.",
+          "RE-PLAN": "Write a new planGraph revision (same session) and validate before any edits.",
+          "RECONSTRUCT_FROM_M1_M2": "Reload from session-pack + work rollups; avoid using compacted chat memory.",
+          "PAUSE_AUTOMATION": "Stop tool use and require user confirmation if repeated drift occurs.",
+          "WRITE_OVERRIDE_EVENT": "Persist the override as a HumanOverride envelope so reducers and future sessions treat it as durable policy input.",
+          "SWITCH_TRAVERSAL_RECIPE": "Switch between process-first / contract-first / impact-first recipes and emit a DecisionEvent (deterministic) describing why."
+        }
+      },
+      "decomposition_review_validation": {
+        "artifacts": {
+          "decomposition": ".ai/tmp/<sessionId>/decomposition/{tree.json,review.jsonl,lint.json}",
+          "review": "Reviewer emits structured findings as enveloped events (kind=AgentSpawn or ToolUse with payload.type=AgentEvent/ToolEvent).",
+          "validation": "Verifier emits validator results; reducers compute pass rates and gate progression."
+        },
+        "rules": [
+          "Every plan node must be atomic: one primary target file, deterministic anchor or search string.",
+          "Every node must have acceptance criteria that can be verified by a command or file existence.",
+          "Every non-mechanical node must declare citations if it depends on external claims.",
+          "Deps must be acyclic and minimal (no circular 'review depends on implementation')."
+        ]
+      },
+      "heuristics_and_routing": {
+        "why": "We need explicit heuristic selection (which traversal recipe, which verification, which agent) and model/agent selection based on task class.",
+        "task_classes": {
+          "schema_extraction": {
+            "default_agent": "graph_first_researcher",
+            "default_model": "cheaper/fast model",
+            "verification": ["schema validator", "spot-check via read_file"],
+            "heuristics": ["contract-first", "graph-first"]
+          },
+          "planning_decomposition": {
+            "default_agent": "orchestrator",
+            "default_model": "stronger model",
+            "verification": ["planGraph validator", "planGraph lint"],
+            "heuristics": ["atomic-split", "dependency-minimization"]
+          },
+          "implementation": {
+            "default_agent": "orchestrator",
+            "default_model": "stronger model",
+            "verification": ["targeted tests", "lint"],
+            "heuristics": ["minimal-diff", "one-file-at-a-time"]
+          },
+          "review_compliance": {
+            "default_agent": "reviewer",
+            "default_model": "fast model",
+            "verification": ["policy checks"],
+            "heuristics": ["scope-audit", "risk-scan"]
+          },
+          "verification": {
+            "default_agent": "verifier",
+            "default_model": "fast model",
+            "verification": ["commands"],
+            "heuristics": ["smallest-test-first", "expand-only-on-failure"]
+          }
+        },
+        "heuristics_selector": {
+          "role": "A dedicated agent chooses traversal recipes + next-step heuristics based on metrics and task class.",
+          "inputs": ["last N enveloped events", "metrics rollups", "graph-hook suggestedActions"],
+          "outputs": ["selected heuristic", "justification", "bounded next actions (<=5)"]
+        }
+      }
+    },
+    "system_integration": {
+      "intent": "Describe how the pieces compose into a coherent, extensible system (not a list of parts), including ramifications: compatibility, rollout, telemetry cost, and how we triage and improve over time.",
+      "composition": {
+        "boundary": "VS Code hooks are the runtime boundary (stdin/stdout JSON). Everything we add is one-shot Node and writes only to .ai/tmp. No long-running process is introduced.",
+        "primary_join": "The envelope schema is the join contract (pi-ui/interchange-envelope@v1), but to keep compatibility and minimize risk we *embed* an `envelope` object inside existing jsonl event records first; reducers may also materialize a derived `.ai/tmp/<sessionId>/metrics/events.enveloped.jsonl` stream for strict validation.",
+        "neo4j_boundary": "Neo4j is accessed only by graph-hook internals. All other subsystems consume GraphResult payloads + context-pack pointers, never direct Cypher.",
+        "governance": "MemoryRecord/EvidenceOverlap + control_plane metrics drive deterministic self-healing actions and can pause automation."
+      },
+      "wiring_map": {
+        "config_path": ".github/hooks/pi-ui-hooks.json",
+        "hook_order_today": {
+          "UserPromptSubmit": ["node .ai/hooks/session-pack/user-prompt-submit-hook.js"],
+          "SessionStart": [
+            "node .ai/hooks/graph-hook/session-start-hook.js",
+            "node .ai/hooks/session-pack/session-start-hook.js"
+          ],
+          "PreToolUse": [
+            "node .ai/hooks/graph-hook/guard-hook.js",
+            "node .ai/hooks/session-pack/pre-tool-use-hook.js",
+            "node .ai/hooks/graph-hook/graph-hook.js"
+          ],
+          "PostToolUse": [
+            "node .ai/hooks/graph-hook/post-tool-use-hook.js",
+            "node .ai/hooks/session-pack/post-tool-use-hook.js"
+          ],
+          "SubagentStart": [
+            "node .ai/hooks/subagent-task/subagent-start-hook.js",
+            "node .ai/hooks/plan-graph-hook/subagent-start-hook.js"
+          ],
+          "Stop": ["node .ai/hooks/session-pack/stop-hook.js", "node .ai/hooks/graph-hook/stop-hook.js"]
+        },
+        "join_keys": {
+          "sessionId": "Best-effort extraction from hook input (sessionId/session_id/session.id/workspace.sessionId) or COPILOT_SESSION_ID.",
+          "workId": "Source-of-truth is `.ai/tmp/current-work.json` (written/maintained by graph-hook work-id + read by session-pack SessionStart).",
+          "correlationId": "For tool events: use tool_use_id/toolUseId when present; else derive a deterministic hash of (hookEventName, toolName, ts). For subagents: use subAgentId/agentId when present."
+        },
+        "what_writes_where": {
+          "session_pack": ".ai/tmp/<sessionId>/{events.jsonl,state.json,registry.jsonl}",
+          "graph_hook": ".ai/tmp/<workId>/hooks/graph-hook/{events.jsonl,index.json,context-pack.json} (EXACTLY 3 artifacts contract)",
+          "control_plane_outputs": ".ai/tmp/<sessionId>/metrics/* and .ai/tmp/<sessionId>/reports/* (created by one-shot automation scripts, typically at Stop)"
+        },
+        "feel_good_principles": [
+          "No per-tool overhead by default: control plane stays off unless PI_UI_ENABLE_CONTROL_PLANE=1.",
+          "No cross-hook coupling: graph-hook remains rollup-only; reducers join using sessionId/workId/toolUseId.",
+          "No new files inside `.ai/tmp/<workId>/hooks/graph-hook/` beyond the existing 3; any strict/enveloped stream is materialized under `.ai/tmp/<sessionId>/metrics/`."
+        ]
+      },
+      "compatibility_assertions": {
+        "non_breaking_by_default": [
+          "Legacy session-pack events.jsonl lines remain; enveloped lines are additive.",
+          "graph-hook context-pack/index remain the source of heavy payloads; envelope lines carry only summaries + pointers.",
+          "Hook stdout contracts remain unchanged (continue/systemMessage/stopReason); envelope is for on-disk interop, not hook I/O."
+        ],
+        "compat_risks": [
+          {
+            "risk": "Telemetry overhead (more hook work per tool call)",
+            "mitigation": "Bounded window reducers; env flags to disable validation/reducers; emit summaries not expansions."
+          },
+          {
+            "risk": "Schema drift across writers",
+            "mitigation": "Single schema file + shared adapter lib + validator node; versioned schema ids."
+          },
+          {
+            "risk": "Hook event availability differs across VS Code versions",
+            "mitigation": "PreCompact is best-effort; Stop fallback writes snapshots; wiring is staged."
+          }
+        ]
+      },
+      "migration_plan": {
+        "stages": [
+          {
+            "name": "Stage0-manual",
+            "goal": "Prove schema + reducers without changing hook wiring",
+            "actions": ["Write schema + adapter lib", "Run validators manually", "Compare output size/latency"],
+            "exit_criteria": [
+              "validate-interchange passes on sample envelopes",
+              "reduce-metrics produces metrics@v1 records"
+            ]
+          },
+          {
+            "name": "Stage1-Stop-only",
+            "goal": "Minimally invasive automation",
+            "actions": ["Wire Stop to run validate-interchange + reduce-metrics (non-blocking)"]
+          },
+          {
+            "name": "Stage2-PreCompact+Subagent",
+            "goal": "Compaction safety + agent traceability",
+            "actions": ["Wire PreCompact snapshot writer", "Wire SubagentStart/Stop envelopes"],
+            "guardrails": ["Disable by default unless env PI_UI_ENABLE_CONTROL_PLANE=1"]
+          }
+        ]
+      },
+      "extensibility": {
+        "versioning": {
+          "envelope": "Increment schema_id only for breaking changes (v2). For additive fields, keep v1 and mark optional.",
+          "metrics": "Same policy for pi-ui/metrics@v1."
+        },
+        "new_subsystems": "Any new connector (e.g., Jira export ingestion) must either emit enveloped events or provide a lossless adapter to envelope@v1.",
+        "avoid_bespoke": "No subsystem is allowed to introduce a parallel, incompatible event format without an adapter + validator."
+      },
+      "telemetry_and_triage": {
+        "principle": "Telemetry is for improvement and root-cause triage, not to prove the system works once.",
+        "triage_questions": [
+          "Are we following graph suggestions? (overlap + deviation metrics)",
+          "Is decomposition executable? (planGraph lint atomicity)",
+          "Did compaction change state? (compact_drift)",
+          "Are validators failing repeatedly? (validation_pass_rate + governance events)"
+        ],
+        "logging": {
+          "where": "All logs are structured envelopes written to .ai/tmp; avoid unstructured console logs except for developer debugging.",
+          "how": "Governance decisions are written as enveloped events so reducers and humans can trace why the controller paused/changed behavior."
+        }
+      },
+      "system_level_citations": [
+        "https://code.visualstudio.com/docs/copilot/customization/hooks (hook lifecycle + JSON I/O boundaries)",
+        "https://code.visualstudio.com/docs/copilot/customization/agent-skills (progressive disclosure as a scaling mechanism)",
+        "https://arxiv.org/html/2512.24601v1 §3.1 (delegated recursion + verification gating as a closed-loop control)",
+        "Repo evidence: .ai/hooks/graph-hook/evidence-index.js (overlap metric feasibility)",
+        "Repo evidence: .ai/hooks/graph-hook/rollup-store.js (durable rollup design boundary)",
+        "Repo evidence: .ai/hooks/session-pack/user-prompt-submit-hook.js (intent capture boundary)"
+      ]
+    }
+  },
+  "nodes": [
+    {
+      "id": "n0-memory-system-contract",
+      "type": "edit",
+      "deps": [],
+      "scope": {
+        "files_allow": [
+          ".github/skills/codified-context/SKILL.md",
+          ".ai/hooks/graph-hook/schema/graph-hook.schema.json",
+          ".ai/hooks/session-pack/README.md"
+        ],
+        "symbols_allow": []
+      },
+      "atomic": {
+        "target_file": ".github/skills/codified-context/SKILL.md",
+        "target_symbol": "memory-tiers+contracts",
+        "search": "Add a 'Memory Architecture' section that mirrors meta.memory_architecture in planGraph: M0..M4 tiers, join keys (sessionId/workId/worktree), Neo4j retrieval contract (rankedRows/ids), and governor rules driven by MemoryRecord + evidence overlap."
+      },
+      "rationale": "A memory system must be explicit and shared; otherwise agents treat memory as prose and drift during compaction/resume.",
+      "citations": [
+        "https://code.visualstudio.com/docs/copilot/customization/hooks (hooks provide lifecycle moments for snapshotting)",
+        "https://arxiv.org/html/2512.24601v1 §3.1 (recursive decomposition requires cost/verification gating)",
+        "Repo evidence: .ai/hooks/graph-hook/schema/graph-hook.schema.json (suggestedActions + globalMemories)",
+        "Repo evidence: .ai/hooks/session-pack/user-prompt-submit-hook.js (canonical intent capture)"
+      ],
+      "acceptance": [
+        "Skill text defines M0..M4 tiers and explicitly names the on-disk artifacts",
+        "Skill defines join keys and the Neo4j retrieval payload expectations",
+        "Skill includes governor rules that halt/re-scope based on MemoryRecord/EvidenceOverlap"
+      ]
+    },
+    {
+      "id": "n0b-precompact-snapshot-hook",
+      "type": "add",
+      "deps": ["n0-memory-system-contract"],
+      "scope": {
+        "files_allow": [
+          ".ai/hooks/session-pack/pre-compact-hook.js",
+          ".ai/hooks/session-pack/session-pack-utils.js",
+          ".github/hooks/pi-ui-hooks.json"
+        ]
+      },
+      "atomic": {
+        "target_file": ".ai/hooks/session-pack/pre-compact-hook.js",
+        "target_symbol": "main",
+        "search": "Add a PreCompact hook handler that writes a compact snapshot artifact under .ai/tmp/<sessionId>/compact/ capturing intent/constraints/state/governance/next-actions. The script must be tolerant if VS Code never emits PreCompact; it should exit silently unless hook_event_name==PreCompact."
+      },
+      "rationale": "Compaction safety requires a deterministic snapshot of M1/M2/M3 so the controller can resume without drift.",
+      "citations": [
+        "https://code.visualstudio.com/docs/copilot/customization/hooks",
+        "https://arxiv.org/html/2512.24601v1 Appendix D.1 (cost control / avoid repeated redundant work)"
+      ],
+      "acceptance": [
+        "Script is one-shot Node, writes only under .ai/tmp/<sessionId>/compact/",
+        "If PreCompact is never fired, no behavior changes occur",
+        "If PreCompact is fired, snapshot.json is field-capped and <=2k-token summary"
+      ]
+    },
+    {
+      "id": "n0c-add-interchange-schema",
+      "type": "add",
+      "deps": ["n0-memory-system-contract"],
+      "scope": {
+        "files_allow": [".ai/schema/pi-ui-interchange-envelope.v1.schema.json"]
+      },
+      "atomic": {
+        "target_file": ".ai/schema/pi-ui-interchange-envelope.v1.schema.json",
+        "target_symbol": "root",
+        "search": "Add a JSON Schema for meta.interop_schema.envelope (schema_id pi-ui/interchange-envelope@v1) including required ids/kind/producer/pointers/payload and payloadTypes: SessionEvent, ToolEvent, GraphResult, AgentEvent, CompactSnapshot. Keep it permissive enough to wrap existing artifacts, but strict on required envelope keys and enums."
+      },
+      "rationale": "A single schema is the compatibility contract; without it, each subsystem will drift and adapters become bespoke.",
+      "citations": [
+        "https://code.visualstudio.com/docs/copilot/customization/hooks (hook I/O is JSON; schema can be enforced at boundaries)"
+      ],
+      "acceptance": [
+        "Schema file exists under .ai/schema/ and is versioned (v1)",
+        "Schema defines required envelope keys and enumerations for kind/producer/payload.type"
+      ]
+    },
+    {
+      "id": "n0d-add-envelope-adapter-lib",
+      "type": "add",
+      "deps": ["n0c-add-interchange-schema"],
+      "scope": {
+        "files_allow": [".ai/shared/interchange/envelope.cjs"]
+      },
+      "atomic": {
+        "target_file": ".ai/shared/interchange/envelope.cjs",
+        "target_symbol": "exports",
+        "search": "Add a CommonJS (require()-friendly) pure Node (no deps) adapter: makeEnvelope({schemaId, kind, ids, producer, pointers, payload, governance?}), embedEnvelope(legacyEvent, envelope) (returns legacyEvent with `envelope` field), canonicalizeForHash(obj) (stable key order), sha256OfPayload(payload.data), validateEnvelope(envelope, schemaPath). Must be hook-safe: bounded stringification, no network, never throw unless explicitly requested by env (strict mode)."
+      },
+      "rationale": "Writers need a shared implementation, not copy-pasted envelope logic across hooks.",
+      "acceptance": [
+        "Module is CommonJS and can be required from hook scripts",
+        "Validation can be toggled off via env (e.g., PI_UI_ENVELOPE_VALIDATE=0)"
+      ]
+    },
+    {
+      "id": "n0e-session-pack-enveloped-events",
+      "type": "edit",
+      "deps": ["n0d-add-envelope-adapter-lib"],
+      "scope": {
+        "files_allow": [
+          ".ai/hooks/session-pack/session-pack-utils.js",
+          ".ai/hooks/session-pack/user-prompt-submit-hook.js",
+          ".ai/hooks/session-pack/session-start-hook.js",
+          ".ai/hooks/session-pack/pre-tool-use-hook.js",
+          ".ai/hooks/session-pack/post-tool-use-hook.js",
+          ".ai/hooks/session-pack/stop-hook.js"
+        ]
+      },
+      "atomic": {
+        "target_file": ".ai/hooks/session-pack/session-pack-utils.js",
+        "target_symbol": "appendJsonl+envelope",
+        "search": "Extend session-pack utils (CommonJS) with control-plane helpers: isControlPlaneEnabled() (PI_UI_ENABLE_CONTROL_PLANE==1), deriveCorrelationIdFromHookInput(input) (prefer tool_use_id/toolUseId; fallback deterministic hash), and appendEventWithOptionalEnvelope({eventsPath, legacyEvent, envelope}) that appends the legacy event line and (when enabled) embeds `legacyEvent.envelope = envelope` using the shared adapter. Update user-prompt-submit/pre-tool-use/post-tool-use/stop/session-start hooks to: (a) include correlationId/workId where available, (b) embed an envelope object rather than changing the top-level line shape, and (c) keep all existing legacy fields for backward compatibility."
+      },
+      "rationale": "Session-pack is the durable intent/timeline store; it must be able to emit contract-valid events for other systems to consume.",
+      "acceptance": [
+        "PROMPT, STOP, PreToolUse, PostToolUse events embed a valid envelope when PI_UI_ENABLE_CONTROL_PLANE=1",
+        "Legacy lines are preserved (no breaking consumers)"
+      ]
+    },
+    {
+      "id": "n0f-graph-hook-enveloped-augmentations",
+      "type": "edit",
+      "deps": ["n0d-add-envelope-adapter-lib"],
+      "scope": {
+        "files_allow": [
+          ".ai/hooks/graph-hook/post-tool-use-hook.js",
+          ".ai/hooks/graph-hook/schema/graph-hook.schema.json"
+        ]
+      },
+      "atomic": {
+        "target_file": ".ai/hooks/graph-hook/post-tool-use-hook.js",
+        "target_symbol": "tool-result event append",
+        "search": "When graph-hook writes its existing rollup `kind: 'tool-result'` event to `.ai/tmp/<workId>/hooks/graph-hook/events.jsonl`, embed a bounded `envelope` summary (do NOT introduce a new file and do NOT change `kind` away from invocation/tool-result). The embedded envelope must include ids.sessionId + ids.workId + correlationId (toolUseId when present) and pointers.contextPack{workId,entryId} when contextPackEntryId is available. Payload is a GraphResult summary: rankedRows (bounded), suggestedActions (bounded), globalMemories summary, and NO heavy expansions (those remain in context-pack.json)."
+      },
+      "rationale": "Graph-hook is the Neo4j boundary. Consumers need a stable, schema-validated payload describing rankedRows/ids + how to retrieve the full entry.",
+      "acceptance": [
+        "No additional files are created in `.ai/tmp/<workId>/hooks/graph-hook/` (preserves EXACTLY-3-artifacts contract)",
+        "Each tool-result event can carry an embedded envelope referencing context-pack entryId when available"
+      ]
+    },
+    {
+      "id": "n0g-subagent-spawn-envelopes",
+      "type": "edit",
+      "deps": ["n0d-add-envelope-adapter-lib"],
+      "scope": {
+        "files_allow": [
+          ".ai/hooks/subagent-task/subagent-start-hook.js",
+          ".ai/hooks/session-pack/session-pack-utils.js"
+        ]
+      },
+      "atomic": {
+        "target_file": ".ai/hooks/subagent-task/subagent-start-hook.js",
+        "target_symbol": "main",
+        "search": "On SubagentStart (which is wired today), append a legacy session-pack event into `.ai/tmp/<sessionId>/events.jsonl` that embeds an AgentSpawn envelope via session-pack-utils. Include: ids.sessionId, ids.workId (from `.ai/tmp/current-work.json` when available), correlationId=subAgentId/agentId, pointers.paths including `.ai/tmp/work-cache.md` and any produced artifact pointers, and payload.type=AgentEvent {agentName, reason}. NOTE: SubagentStop is not wired today; Stage2 should add a separate node to add `SubagentStop` wiring + a `subagent-stop-hook.js` file if we want stop events."
+      },
+      "rationale": "If agents are a tier of memory, their existence and outputs must be in the same interchange contract as other memories.",
+      "acceptance": [
+        "SubagentStart writes an embedded AgentSpawn envelope event (when enabled)",
+        "Events include pointers to artifacts produced by the subagent"
+      ]
+    },
+    {
+      "id": "n0h-interop-validator",
+      "type": "add",
+      "deps": ["n0c-add-interchange-schema"],
+      "scope": {
+        "files_allow": [".ai/automation/validate-interchange.mjs", ".github/hooks/pi-ui-hooks.json"]
+      },
+      "atomic": {
+        "target_file": ".ai/automation/validate-interchange.mjs",
+        "target_symbol": "cli",
+        "search": "Add a one-shot Node validator that reads the last N lines of session-pack events.jsonl, extracts any embedded `envelope` objects, and validates those envelopes against .ai/schema/pi-ui-interchange-envelope.v1.schema.json. Optionally materialize a derived `.ai/tmp/<sessionId>/metrics/events.enveloped.jsonl` stream containing only valid/invalid envelope records + source pointers for debugging. On failure, emit a governance WARN/BLOCK legacy event (with embedded envelope) and return exit code 0 unless PI_UI_ENVELOPE_STRICT=1."
+      },
+      "rationale": "Compatibility must be enforced mechanically; otherwise the 'common schema' decays.",
+      "acceptance": [
+        "Validator is one-shot, bounded (N lines), no network",
+        "Validator can run from a hook or manually without breaking workflows"
+      ]
+    },
+    {
+      "id": "n0o-system-compat-audit",
+      "type": "add",
+      "deps": ["n0h-interop-validator", "n0j-add-metrics-reducer", "n0k-add-plangraph-lint"],
+      "scope": {
+        "files_allow": [".ai/automation/audit-control-plane-compat.mjs", ".github/hooks/pi-ui-hooks.json"]
+      },
+      "atomic": {
+        "target_file": ".ai/automation/audit-control-plane-compat.mjs",
+        "target_symbol": "cli",
+        "search": "Add a one-shot compatibility auditor that checks the composed system, not individual pieces: (1) parses .github/hooks/pi-ui-hooks.json and verifies which events are wired today, (2) verifies all referenced scripts/schema paths exist for the staged rollout, (3) reports which stage is achievable without rewiring, (4) emits a structured report under .ai/tmp/<sessionId>/reports/control-plane-compat.json and a governance WARN envelope when gaps exist. Must be bounded and no network."
+      },
+      "rationale": "This is the missing system-level guarantee: prove that the plan’s nodes compose with the hook wiring we have today and highlight ramifications (overhead, missing events) before we implement.",
+      "citations": [
+        "https://code.visualstudio.com/docs/copilot/customization/hooks (hook availability + config-driven wiring)",
+        "Repo evidence: .github/hooks/pi-ui-hooks.json (single source for active hook wiring)"
+      ],
+      "acceptance": [
+        "Auditor produces a stage-by-stage compatibility report",
+        "Auditor does not block by default; can be strict via env"
+      ]
+    },
+    {
+      "id": "n0p-stage1-stop-hook-wiring",
+      "type": "edit",
+      "deps": ["n0o-system-compat-audit"],
+      "scope": {
+        "files_allow": [".github/hooks/pi-ui-hooks.json"]
+      },
+      "atomic": {
+        "target_file": ".github/hooks/pi-ui-hooks.json",
+        "target_symbol": "hooks.Stop",
+        "search": "Stage1 migration: extend Stop hook entries (after the existing session-pack + graph-hook Stop hooks) to run `node .ai/automation/validate-interchange.mjs` and `node .ai/automation/reduce-metrics.mjs`, guarded by env PI_UI_ENABLE_CONTROL_PLANE=1. Keep timeouts tight (single-digit seconds) and keep these scripts non-blocking (exit 0 unless strict env is enabled). Do not change other hook events."
+      },
+      "rationale": "This is the least risky wiring change: Stop is always present and avoids per-tool overhead while still producing telemetry for triage and improvement.",
+      "citations": [
+        "https://code.visualstudio.com/docs/copilot/customization/hooks (Stop event + command hooks)",
+        "Repo evidence: .github/hooks/pi-ui-hooks.json (workspace-shared hook config)"
+      ],
+      "acceptance": [
+        "Control plane remains disabled unless PI_UI_ENABLE_CONTROL_PLANE=1",
+        "Stop hook wiring runs one-shot scripts only"
+      ]
+    },
+    {
+      "id": "n0i-add-metrics-schema",
+      "type": "add",
+      "deps": ["n0c-add-interchange-schema"],
+      "scope": {
+        "files_allow": [".ai/schema/pi-ui-metrics.v1.schema.json"]
+      },
+      "atomic": {
+        "target_file": ".ai/schema/pi-ui-metrics.v1.schema.json",
+        "target_symbol": "root",
+        "search": "Add a JSON Schema for metric records emitted by reducers: {schema:'pi-ui/metrics@v1',ts,sessionId,workId?,window:{nEvents},metrics:{graph_overlap_ratio,suggested_actions_deviation_rate,decomposition_atomicity_score,validation_pass_rate,compact_drift},inputs:{eventsPath,contextPackPath?}}."
+      },
+      "rationale": "Observability needs a typed metric record so self-healing rules can be deterministic and testable.",
+      "acceptance": [
+        "Schema exists and is versioned v1",
+        "Schema defines required fields and metric names used by control_plane triggers"
+      ]
+    },
+    {
+      "id": "n0j-add-metrics-reducer",
+      "type": "add",
+      "deps": ["n0d-add-envelope-adapter-lib", "n0i-add-metrics-schema"],
+      "scope": {
+        "files_allow": [".ai/automation/reduce-metrics.mjs", ".ai/automation/validate-metrics.mjs"]
+      },
+      "atomic": {
+        "target_file": ".ai/automation/reduce-metrics.mjs",
+        "target_symbol": "cli",
+        "search": "Add one-shot reducer that computes control_plane metrics from *real wired stores*: (1) session-pack `.ai/tmp/<sessionId>/events.jsonl` (extract embedded envelopes + legacy fields) and (2) graph-hook rollup `.ai/tmp/<workId>/hooks/graph-hook/{events.jsonl,index.json}` where workId is read from session-pack state.core.workId or `.ai/tmp/current-work.json`. Join using (sessionId, workId, correlationId=toolUseId). Write `.ai/tmp/<sessionId>/metrics/metrics.jsonl` records conforming to pi-ui/metrics@v1 and a small rollup summary under `.ai/tmp/<sessionId>/metrics/rollups/*.json`. Add validate-metrics.mjs to validate metric records against schema and emit governance WARN/BLOCK (embedded envelope) on failure."
+      },
+      "rationale": "Self-healing requires measured signals, not vibes; reducers are the safe mechanism (bounded, one-shot).",
+      "acceptance": [
+        "Reducer is bounded (N lines/events), one-shot Node, no network",
+        "Metric output is schema-validated",
+        "Failures surface as governance signals (WARN/BLOCK)"
+      ]
+    },
+    {
+      "id": "n0q-emit-search-outcomes",
+      "type": "edit",
+      "deps": ["n0d-add-envelope-adapter-lib", "n0e-session-pack-enveloped-events"],
+      "scope": {
+        "files_allow": [".ai/hooks/session-pack/post-tool-use-hook.js", ".ai/hooks/session-pack/session-pack-utils.js"]
+      },
+      "atomic": {
+        "target_file": ".ai/hooks/session-pack/post-tool-use-hook.js",
+        "target_symbol": "main",
+        "search": "Augment PostToolUse handling to record SearchOutcome for grep_search/file_search/semantic_search by appending a second legacy event line (e.g., event:'SearchOutcome', kind:'SEARCH_OUTCOME') that embeds a SearchOutcome envelope. Implement extraction helpers that are tolerant to tool-result shape: pull hitCount and topHits (<=10 repo-relative paths) when available; if unknown, set hitCount=null but still set negativeEvidence=true when output is clearly empty. correlationId must match the same toolUseId-derived correlationId used for the TOOL_OUTCOME event."
+      },
+      "rationale": "The 'journey' includes wasted exploration. Empty searches are high-signal negative evidence that must be measured to reduce churn and switch heuristics early.",
+      "acceptance": [
+        "For search tools, a SearchOutcome legacy event is appended (with embedded envelope) when control plane enabled",
+        "SearchOutcome includes hitCount and negativeEvidence",
+        "No behavior change for non-search tools"
+      ]
+    },
+    {
+      "id": "n0r-emit-decision-events",
+      "type": "add",
+      "deps": ["n0d-add-envelope-adapter-lib", "n0j-add-metrics-reducer"],
+      "scope": {
+        "files_allow": [".ai/automation/emit-decision-event.mjs"]
+      },
+      "atomic": {
+        "target_file": ".ai/automation/emit-decision-event.mjs",
+        "target_symbol": "cli",
+        "search": "Add a one-shot utility that appends a DecisionEvent envelope to session-pack events.jsonl. Inputs: decisionType, selected (agent/heuristic), justification (short), nextActions (<=5), correlationId. This allows deterministic recording of routing/heuristic selection without requiring model access."
+      },
+      "rationale": "Wrong heuristic/agent selection is only improvable if we log deterministic decision points and join them to downstream failures.",
+      "acceptance": [
+        "Tool writes a valid Decision envelope event",
+        "Decision event includes correlationId and can be validated by validate-interchange"
+      ]
+    },
+    {
+      "id": "n0s-human-override-event",
+      "type": "add",
+      "deps": ["n0d-add-envelope-adapter-lib"],
+      "scope": {
+        "files_allow": [".ai/automation/append-human-override.mjs"]
+      },
+      "atomic": {
+        "target_file": ".ai/automation/append-human-override.mjs",
+        "target_symbol": "cli",
+        "search": "Add a one-shot utility that appends a HumanOverride envelope event to session-pack events.jsonl. Inputs: overrideType, reason, delta, effectiveUntil?. This captures human intervention as durable memory so replay/reducers can account for it."
+      },
+      "rationale": "Human interventions are part of the journey and must be modeled; otherwise we misattribute outcomes to heuristics/agents.",
+      "acceptance": [
+        "Tool writes a valid HumanOverride envelope event",
+        "Override is included in metrics windows (human_override_count)"
+      ]
+    },
+    {
+      "id": "n0k-add-plangraph-lint",
+      "type": "add",
+      "deps": [],
+      "scope": {
+        "files_allow": [".ai/automation/lint-plan-graph.mjs"]
+      },
+      "atomic": {
+        "target_file": ".ai/automation/lint-plan-graph.mjs",
+        "target_symbol": "cli",
+        "search": "Add a one-shot linter for planGraph that enforces decomposition_review_validation rules: atomic nodes (single target_file), narrow files_allow, deps acyclic, acceptance non-empty, and (optionally) citations required when rationale contains 'paper' or external URLs. Output a JSON report written under .ai/tmp/<sessionId>/decomposition/lint.json."
+      },
+      "rationale": "We need validation for task decomposition beyond the basic planGraph shape validator.",
+      "acceptance": [
+        "Linter produces deterministic output and can fail soft/hard via env",
+        "Linter covers atomicity + deps + acceptance rules"
+      ]
+    },
+    {
+      "id": "n0l-add-heuristics-selector-agent",
+      "type": "add",
+      "deps": ["n1-tiered-hot-memory-doc"],
+      "scope": {
+        "files_allow": [".github/agents/codified-context-heuristics-selector.agent.md"]
+      },
+      "atomic": {
+        "target_file": ".github/agents/codified-context-heuristics-selector.agent.md",
+        "target_symbol": "frontmatter+instructions",
+        "search": "Create a dedicated heuristics-selector agent: consumes last N enveloped events + metrics rollups and outputs (a) chosen traversal recipe, (b) agent routing decision, (c) bounded next actions (<=5) expressed as suggestedActions-style items. Must be read-only (no apply_patch) and must reference control_plane thresholds.",
+        "few_shot_refs": [".github/agents/test.agent.md#L1-L12"]
+      },
+      "rationale": "Heuristic selection should be explicit and delegated; otherwise the orchestrator improvises and becomes untestable.",
+      "citations": ["https://arxiv.org/html/2512.24601v1 §3.1 (delegated recursion + verification gating)"],
+      "acceptance": [
+        "Agent is read-only and emits bounded next steps",
+        "Agent instructions cite which metrics/thresholds it uses"
+      ]
+    },
+    {
+      "id": "n0m-add-decomposition-validator-agent",
+      "type": "add",
+      "deps": ["n1-tiered-hot-memory-doc", "n0k-add-plangraph-lint"],
+      "scope": {
+        "files_allow": [".github/agents/codified-context-decomposition-validator.agent.md"]
+      },
+      "atomic": {
+        "target_file": ".github/agents/codified-context-decomposition-validator.agent.md",
+        "target_symbol": "frontmatter+instructions",
+        "search": "Create an agent that reviews a proposed planGraph decomposition and rewrites it into atomic nodes when it fails lint rules (without implementing code). It must output a patch plan (node splits/dep rewires) and point to which lint rule each change satisfies.",
+        "few_shot_refs": [".github/skills/plan-graph/SKILL.md#L1-L80"]
+      },
+      "rationale": "Decomposition needs both review and correction, not only detection.",
+      "acceptance": [
+        "Agent output is a structured rewrite plan referencing lint findings",
+        "Agent never edits repo directly; it proposes planGraph node changes only"
+      ]
+    },
+    {
+      "id": "n0n-add-router-policy-to-orchestrator",
+      "type": "edit",
+      "deps": ["n0l-add-heuristics-selector-agent", "n2-add-orchestrator-agent"],
+      "scope": {
+        "files_allow": [".github/agents/codified-context-orchestrator.agent.md"]
+      },
+      "atomic": {
+        "target_file": ".github/agents/codified-context-orchestrator.agent.md",
+        "target_symbol": "routing-policy",
+        "search": "Add a 'Routing Policy' section: classify tasks into control_plane.task_classes and choose (agent, model) accordingly. Require calling heuristics-selector when metrics triggers fire, and require running planGraph lint + validate before any apply_patch.",
+        "few_shot_refs": [".github/agents/test.agent.md#L1-L12"]
+      },
+      "rationale": "Without an explicit router, agent/model selection is ad-hoc and cannot be improved via metrics.",
+      "acceptance": [
+        "Orchestrator instructions require lint+validate before edits",
+        "Orchestrator delegates heuristic selection based on metric triggers"
+      ]
+    },
+    {
+      "id": "n1-tiered-hot-memory-doc",
+      "type": "edit",
+      "deps": [],
+      "scope": {
+        "files_allow": [".github/copilot-instructions.md"],
+        "symbols_allow": []
+      },
+      "atomic": {
+        "target_file": ".github/copilot-instructions.md",
+        "target_symbol": "codified-context-tiers",
+        "search": "Add a short 'Codified Context Tiers' section mapping Tier 1/2/3 to this repo's existing .github/.ai structure; include links to .github/agents, .github/skills, .github/hooks, and graph-hook/session-pack artifacts."
+      },
+      "rationale": "Tiering makes Copilot customization tractable: keep always-loaded policy minimal (Tier 1) while pushing operational detail into agents/skills (Tier 2/3).",
+      "citations": [
+        "https://code.visualstudio.com/docs/copilot/customization/custom-agents",
+        "https://code.visualstudio.com/docs/copilot/customization/agent-skills",
+        "https://code.visualstudio.com/docs/copilot/customization/hooks"
+      ],
+      "acceptance": [
+        "Doc: section describes Tier 1 (always-loaded), Tier 2 (agents), Tier 3 (skills/specs)",
+        "Doc: includes links/pointers to .github/agents/, .github/skills/, .github/hooks/pi-ui-hooks.json"
+      ]
+    },
+    {
+      "id": "n2-add-orchestrator-agent",
+      "type": "add",
+      "deps": ["n1-tiered-hot-memory-doc"],
+      "scope": {
+        "files_allow": [".github/agents/codified-context-orchestrator.agent.md"]
+      },
+      "atomic": {
+        "target_file": ".github/agents/codified-context-orchestrator.agent.md",
+        "target_symbol": "frontmatter+instructions",
+        "search": "Create a new custom agent (.agent.md) that acts as an orchestrator/planner: delegates to a graph-first researcher for Neo4j-backed discovery, delegates to a reviewer for policy compliance, and emits/validates atomic planGraph artifacts.",
+        "few_shot_refs": [".github/agents/test.agent.md#L1-L12"]
+      },
+      "rationale": "Central orchestration reduces repeated tool thrash by explicitly decomposing work and controlling verification loops.",
+      "citations": [
+        "https://arxiv.org/html/2512.24601v1 §3.1 (recursive decomposition + verification tradeoffs)",
+        "https://code.visualstudio.com/docs/copilot/customization/custom-agents"
+      ],
+      "acceptance": [
+        "Agent loads in VS Code from .github/agents/ and appears in picker",
+        "Agent body includes: progressive Neo4j→JSONL fallback rule + planGraph validator command"
+      ]
+    },
+    {
+      "id": "n2b-add-graph-first-agent",
+      "type": "add",
+      "deps": ["n1-tiered-hot-memory-doc"],
+      "scope": {
+        "files_allow": [".github/agents/codified-context-graph-first.agent.md"]
+      },
+      "atomic": {
+        "target_file": ".github/agents/codified-context-graph-first.agent.md",
+        "target_symbol": "frontmatter+instructions",
+        "search": "Create a graph-first custom agent that prefers Neo4j-backed discovery (graph-hook/SDF contracts) and explicitly falls back to JSONL/bounded scans when Neo4j is unavailable; must label fallback results as usage-only.",
+        "few_shot_refs": [".github/skills/sdf-catalog/SKILL.md#L1-L120"]
+      },
+      "rationale": "Graph-first discovery keeps contracts authoritative and avoids guesswork; explicit fallback labeling prevents accidental promotion of usage evidence into a contract.",
+      "citations": [
+        "https://code.visualstudio.com/docs/copilot/customization/custom-agents",
+        "https://arxiv.org/html/2602.20478v1 (schema/extraction motivation; cite specific sections when implementing)",
+        "Repo evidence: .github/skills/sdf-catalog/SKILL.md (Neo4j-first + --scan usage-only)"
+      ],
+      "acceptance": [
+        "Agent instructions include: Neo4j-first contract lookup + `--scan` fallback and explicit labeling",
+        "Agent instructions prohibit guessing contracts when Neo4j is unavailable"
+      ]
+    },
+    {
+      "id": "n2c-add-paper-synth-agent",
+      "type": "add",
+      "deps": ["n1-tiered-hot-memory-doc"],
+      "scope": {
+        "files_allow": [".github/agents/codified-context-paper-synth.agent.md"]
+      },
+      "atomic": {
+        "target_file": ".github/agents/codified-context-paper-synth.agent.md",
+        "target_symbol": "frontmatter+instructions",
+        "search": "Create a paper synthesis agent that turns arXiv 2512.24601 (RLMs) into repo-operational guidance with explicit section/figure citations and concrete do/don't rules.",
+        "few_shot_refs": ["https://arxiv.org/html/2512.24601v1"]
+      },
+      "rationale": "Ensures paper-grounded guidance is translated into enforceable repo rules (tool boundaries, recursion limits, verification discipline) with traceable citations.",
+      "citations": [
+        "https://arxiv.org/html/2512.24601v1 §1 (prompt-as-environment framing)",
+        "https://arxiv.org/html/2512.24601v1 §3.1 (recursion + verification)",
+        "https://arxiv.org/html/2512.24601v1 Appendix D (cost/control guidance)"
+      ],
+      "acceptance": [
+        "Agent instructions require citations to paper sections/figures",
+        "Agent scope is research/synthesis (no hook rewiring by default)"
+      ]
+    },
+    {
+      "id": "n2d-add-hooks-strategist-agent",
+      "type": "add",
+      "deps": ["n1-tiered-hot-memory-doc"],
+      "scope": {
+        "files_allow": [".github/agents/codified-context-hooks-strategist.agent.md"]
+      },
+      "atomic": {
+        "target_file": ".github/agents/codified-context-hooks-strategist.agent.md",
+        "target_symbol": "frontmatter+instructions",
+        "search": "Create a hooks strategist agent that reads .github/hooks/pi-ui-hooks.json and .ai/hooks/** to justify hook↔agent interactions and explicitly justify why missing events are/aren't wired.",
+        "few_shot_refs": [".github/hooks/pi-ui-hooks.json#L1-L120"]
+      },
+      "rationale": "Hook wiring is a high-leverage automation surface; decisions must be justified against current scripts, event availability, and complexity risk.",
+      "citations": [
+        "https://code.visualstudio.com/docs/copilot/customization/hooks",
+        "Repo evidence: .github/hooks/pi-ui-hooks.json (wired events)",
+        "Repo evidence: .ai/hooks/** (one-shot scripts + constraints)"
+      ],
+      "acceptance": [
+        "Agent explains that hooks are workspace-level automation and 'interaction' means outputs consumed or constraints applied",
+        "Agent defaults to proposing doc updates before code changes"
+      ]
+    },
+    {
+      "id": "n2e-add-verifier-agent",
+      "type": "add",
+      "deps": ["n1-tiered-hot-memory-doc"],
+      "scope": {
+        "files_allow": [".github/agents/codified-context-verifier.agent.md"]
+      },
+      "atomic": {
+        "target_file": ".github/agents/codified-context-verifier.agent.md",
+        "target_symbol": "frontmatter+instructions",
+        "search": "Create a verifier agent that prefers mechanical validation (planGraph validator/tests) and checks that fallback scan results are labeled usage-only.",
+        "few_shot_refs": [".github/skills/plan-graph/SKILL.md#L1-L120"]
+      },
+      "rationale": "Separating verification from generation reduces self-justifying output and makes checks repeatable and bounded.",
+      "citations": [
+        "https://arxiv.org/html/2512.24601v1 §3.1 (verification via subcalls can help but can become redundant)",
+        "https://code.visualstudio.com/docs/copilot/customization/custom-agents"
+      ],
+      "acceptance": [
+        "Agent includes planGraph validation command",
+        "Agent focuses on bounded verification instead of repeated re-asking"
+      ]
+    },
+    {
+      "id": "n3-add-reviewer-agent",
+      "type": "add",
+      "deps": ["n1-tiered-hot-memory-doc"],
+      "scope": {
+        "files_allow": [".github/agents/codified-context-reviewer.agent.md"]
+      },
+      "atomic": {
+        "target_file": ".github/agents/codified-context-reviewer.agent.md",
+        "target_symbol": "frontmatter+instructions",
+        "search": "Create a read-only review agent (.agent.md) focused on verifying that changes comply with repo policies (Node-only, no daemons), that hooks/skills follow VS Code schemas, and that planGraph nodes are atomic."
+      },
+      "rationale": "Explicit read-only review reduces accidental scope creep and makes policy enforcement a first-class step.",
+      "citations": [
+        "https://code.visualstudio.com/docs/copilot/customization/custom-agents",
+        "https://code.visualstudio.com/docs/copilot/customization/agent-skills",
+        "https://code.visualstudio.com/docs/copilot/customization/hooks"
+      ],
+      "acceptance": [
+        "Agent marked read-only in body and defaults to review/checklists",
+        "Agent references planGraph validator command and discourages broad search"
+      ]
+    },
+    {
+      "id": "n4-add-codified-context-skill",
+      "type": "add",
+      "deps": ["n1-tiered-hot-memory-doc"],
+      "scope": {
+        "files_allow": [".github/skills/codified-context/SKILL.md"]
+      },
+      "atomic": {
+        "target_file": ".github/skills/codified-context/SKILL.md",
+        "target_symbol": "skill-frontmatter+body",
+        "search": "Add a new agent skill that documents: (1) using graph-hook context-pack to bound exploration, (2) Neo4j-first discovery with explicit JSONL/scan fallback when Neo4j is unavailable, (3) hooks↔agents interaction rationale, (4) session-pack prompt/trace recovery, and (5) atomic planGraph authoring/validation.",
+        "few_shot_refs": [".github/skills/plan-graph/SKILL.md#L1-L80"]
+      },
+      "rationale": "Skills are the durable, discoverable 'how-to' layer; codifying the workflow reduces repeated re-learning and enforces progressive disclosure.",
+      "citations": [
+        "https://code.visualstudio.com/docs/copilot/customization/agent-skills",
+        "https://code.visualstudio.com/docs/copilot/customization/hooks",
+        "https://arxiv.org/html/2602.20478v1 (schema extraction as a driver; add exact section citations when implementing)"
+      ],
+      "acceptance": [
+        "Skill frontmatter name matches directory (codified-context)",
+        "Skill explains progressive disclosure and references existing plan-graph skill as an example"
+      ]
+    },
+    {
+      "id": "n5-add-tier3-doc-template",
+      "type": "add",
+      "deps": ["n4-add-codified-context-skill"],
+      "scope": {
+        "files_allow": [".github/context/README.md"]
+      },
+      "atomic": {
+        "target_file": ".github/context/README.md",
+        "target_symbol": "tier3-template",
+        "search": "Add a minimal Tier 3 'codified context base' template README describing how to write subsystem docs for AI consumption (explicit file paths, patterns, known failure modes) and how to keep them fresh (staleness guidance)."
+      },
+      "rationale": "Tier-3 subsystem docs provide stable, human-curated grounding that reduces token churn and brittle repeated searches.",
+      "citations": [
+        "https://arxiv.org/html/2512.24601v1 §1 (prompt-as-environment suggests durable context artifacts)"
+      ],
+      "acceptance": [
+        "README provides a one-subsystem-per-doc template outline",
+        "README includes a short staleness/update checklist"
+      ]
+    },
+    {
+      "id": "n5b-add-rlm-notes-doc",
+      "type": "add",
+      "deps": ["n4-add-codified-context-skill"],
+      "scope": {
+        "files_allow": [".github/context/arxiv-2512-24601-rlm-notes.md"]
+      },
+      "atomic": {
+        "target_file": ".github/context/arxiv-2512-24601-rlm-notes.md",
+        "target_symbol": "rlm-notes",
+        "search": "Add a Tier-3 doc summarizing operational takeaways from arXiv 2512.24601 (RLMs), with explicit citations (sections/figures) and a mapping to repo primitives (graph-hook, session-pack, planGraph, subagents).",
+        "few_shot_refs": ["https://arxiv.org/html/2512.24601v1"]
+      },
+      "rationale": "Provides a durable, cited mapping from research concepts into repo primitives so future work stays congruent.",
+      "citations": [
+        "https://arxiv.org/html/2512.24601v1 §1 Figure 2",
+        "https://arxiv.org/html/2512.24601v1 §3.1 Figure 4",
+        "https://arxiv.org/html/2512.24601v1 Appendix D.1"
+      ],
+      "acceptance": [
+        "Doc includes citations to paper sections/figures (e.g., §1, Figure 2, §3.1, Appendix D)",
+        "Doc explicitly notes repo constraint: Node-only, no interactive REPL"
+      ]
+    },
+    {
+      "id": "n5c-add-hooks-agents-map-doc",
+      "type": "add",
+      "deps": ["n4-add-codified-context-skill"],
+      "scope": {
+        "files_allow": [".github/context/hooks-agents-map.md"]
+      },
+      "atomic": {
+        "target_file": ".github/context/hooks-agents-map.md",
+        "target_symbol": "hooks-agents-map",
+        "search": "Add a Tier-3 doc mapping active hook events to the agents that rely on their outputs or constraints, with justification and a note about which events are not wired and why.",
+        "few_shot_refs": [".github/hooks/pi-ui-hooks.json#L1-L120"]
+      },
+      "rationale": "Makes hook↔agent coupling explicit and reviewable; prevents accidental reliance on unwired events.",
+      "citations": [
+        "https://code.visualstudio.com/docs/copilot/customization/hooks",
+        "Repo evidence: .github/hooks/pi-ui-hooks.json (wired events)",
+        "Repo evidence: .ai/hooks/** (available hook scripts)"
+      ],
+      "acceptance": [
+        "Doc matches the currently wired events in .github/hooks/pi-ui-hooks.json",
+        "Doc explicitly explains why PreCompact/SubagentStop are not wired (no repo scripts + avoid unnecessary complexity)"
+      ]
+    },
+    {
+      "id": "n7-validate-planGraph",
+      "type": "validate",
+      "deps": [
+        "n1-tiered-hot-memory-doc",
+        "n2-add-orchestrator-agent",
+        "n2b-add-graph-first-agent",
+        "n2c-add-paper-synth-agent",
+        "n2d-add-hooks-strategist-agent",
+        "n2e-add-verifier-agent",
+        "n3-add-reviewer-agent",
+        "n4-add-codified-context-skill",
+        "n5-add-tier3-doc-template",
+        "n5b-add-rlm-notes-doc",
+        "n5c-add-hooks-agents-map-doc"
+      ],
+      "scope": {
+        "files_allow": [
+          ".github/skills/plan-graph/validate-plan-graph.mjs",
+          ".ai/tmp/bedae61c-1bb2-47e0-ab1b-392089e18055/plan/planGraph.json"
+        ]
+      },
+      "atomic": {
+        "target_file": ".github/skills/plan-graph/validate-plan-graph.mjs",
+        "target_symbol": "validatePlanGraphDocument",
+        "anchor": ".github/skills/plan-graph/validate-plan-graph.mjs#L1-L120"
+      },
+      "acceptance": [
+        "Running the validator prints: OK: planGraph contract shape valid",
+        "PlanGraph includes meta.citation_policy + meta.strategy + meta.verification sections"
+      ]
+    }
+  ]
+}
